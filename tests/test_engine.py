@@ -215,3 +215,64 @@ def test_lower_dimension_truncates_and_higher_resets(home, embedder, project):
     bigger = Engine(home, Config(), embedder)
     assert len(bigger.index) == 0 and bigger.store.root_summaries()[0]["waiting"] == 4
     bigger.close()
+
+
+def two_locations(tmp_path):
+    body = "def handler(event):\n    return process(event)\n" * 5
+    inbox, archive = tmp_path / "inbox", tmp_path / "archive"
+    inbox.mkdir()
+    archive.mkdir()
+    (inbox / "one.py").write_text(body + "# one\n")
+    (inbox / "stay.py").write_text(body + "# stay\n")
+    (archive / "keep.py").write_text(body + "# keep\n")
+    return inbox, archive
+
+
+def test_move_between_tracked_locations_keeps_vectors(engine, tmp_path, embedder):
+    inbox, archive = two_locations(tmp_path)
+    run_sync(engine, [str(inbox)])
+    run_sync(engine, [str(archive)])
+    parts = len(engine.index)
+    os.rename(inbox / "one.py", archive / "one.py")
+    before = embedder.texts_embedded
+    plan, done = run_sync(engine)
+    assert plan["totals"]["moves"] == 1 and plan["totals"]["deletes"] == 0 and plan["totals"]["files"] == 0
+    assert done["embedded"] == 0 and embedder.texts_embedded == before and len(engine.index) == parts
+    moved = engine.store.file_by_path(str(archive / "one.py"))
+    assert moved is not None and engine.store.root_containing(moved.path).path == str(archive)
+    assert engine.store.file_by_path(str(inbox / "one.py")) is None
+    hits = engine.search("handler process event one", under=str(archive), per_file=0)["hits"]
+    assert str(archive / "one.py") in {hit["path"] for hit in hits}
+
+
+def test_move_is_found_when_only_the_destination_is_synced(engine, tmp_path, embedder):
+    inbox, archive = two_locations(tmp_path)
+    run_sync(engine, [str(inbox)])
+    run_sync(engine, [str(archive)])
+    os.rename(inbox / "one.py", archive / "one.py")
+    before = embedder.texts_embedded
+    plan, _done = run_sync(engine, [str(archive)])
+    assert plan["totals"]["moves"] == 1 and embedder.texts_embedded == before
+    plan = engine.plan()
+    assert plan["totals"]["deletes"] == 0 and plan["totals"]["files"] == 0
+
+
+def test_a_copy_is_not_treated_as_a_move(engine, tmp_path):
+    inbox, archive = two_locations(tmp_path)
+    run_sync(engine, [str(inbox)])
+    run_sync(engine, [str(archive)])
+    (archive / "one.py").write_bytes((inbox / "one.py").read_bytes())
+    plan, done = run_sync(engine)
+    assert plan["totals"]["moves"] == 0 and done["embedded"] == 1
+    assert engine.store.file_by_path(str(inbox / "one.py")) is not None
+    assert engine.store.file_by_path(str(archive / "one.py")) is not None
+
+
+def test_unavailable_location_is_not_raided_for_moves(engine, tmp_path):
+    inbox, archive = two_locations(tmp_path)
+    run_sync(engine, [str(inbox)])
+    run_sync(engine, [str(archive)])
+    (archive / "one.py").write_bytes((inbox / "one.py").read_bytes())
+    os.rename(inbox, tmp_path / "unplugged")
+    plan = engine.plan([str(archive)])
+    assert plan["totals"]["moves"] == 0 and plan["totals"]["files"] == 1

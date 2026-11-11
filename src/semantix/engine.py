@@ -317,8 +317,41 @@ class Engine:
                 plan.notes.append("Nothing is tracked yet. Run `semantix sync <path>` to add a directory or file.")
             for root in roots:
                 self._plan_target(plan, root.path, override, force, seen)
+        self._match_moves_everywhere(plan)
         self.plans[plan.id] = plan
         return self._summarize(plan)
+
+    def _match_moves_everywhere(self, plan: Plan) -> None:
+        fresh = [item for item in plan.items if item.action == "new" and item.file_id is None and item.size > 0]
+        if not fresh:
+            return
+        sizes = self.store.indexed_sizes()
+        claimed = {file_id for file_id, _old, _candidate, _root in plan.moves}
+        deleting = {file_id for file_id, _path, _root in plan.deletes}
+        available = {root.id for root in self.store.roots() if os.path.exists(root.path)}
+        moved_items: set[str] = set()
+        for item in fresh:
+            if item.size not in sizes:
+                continue
+            if item.hash is None:
+                try:
+                    item.hash = file_hash(item.path, item.size)
+                except OSError:
+                    continue
+            for row in self.store.indexed_by_hash(item.hash, item.kind):
+                if row.id in claimed or row.path == item.path or row.size != item.size:
+                    continue
+                gone = row.id in deleting or (row.root_id in available and not os.path.exists(row.path))
+                if not gone:
+                    continue
+                claimed.add(row.id)
+                moved_items.add(item.path)
+                candidate = Candidate(item.path, item.kind, item.size, item.mtime_ns)
+                plan.moves.append((row.id, row.path, candidate, item.root))
+                break
+        if moved_items:
+            plan.items = [item for item in plan.items if item.path not in moved_items]
+            plan.deletes = [entry for entry in plan.deletes if entry[0] not in claimed]
 
     def _plan_target(
         self, plan: Plan, target: str, override: dict[str, Any] | None, force: bool, seen: set[str]

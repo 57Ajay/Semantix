@@ -322,6 +322,17 @@ class Store:
         self._db.execute("DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE file_id = ?)", (file_id,))
         self._db.execute("DELETE FROM chunks WHERE file_id = ?", (file_id,))
 
+    def indexed_sizes(self) -> set[int]:
+        rows = self._all("SELECT DISTINCT size FROM files WHERE status = ? AND size > 0", (STATUS_INDEXED,))
+        return {row[0] for row in rows}
+
+    def indexed_by_hash(self, digest: str, kind: str) -> list[FileRow]:
+        rows = self._all(
+            "SELECT * FROM files WHERE hash = ? AND kind = ? AND status = ? ORDER BY id",
+            (digest, kind, STATUS_INDEXED),
+        )
+        return [self._file(row) for row in rows]
+
     def indexed_twin(self, digest: str, kind: str, exclude_path: str) -> int | None:
         row = self._one(
             "SELECT id FROM files WHERE hash = ? AND kind = ? AND status = ? AND path != ? LIMIT 1",

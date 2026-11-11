@@ -106,7 +106,8 @@ moved or deleted, with a time estimate, before doing any work.
 - Paths are stored in full, so it does not matter which directory you run a command from, and
   a file is never stored twice.
 - A changed file is detected by size, modification time and content hash, and only the parts
-  that changed are embedded again. Moved and renamed files keep their vectors.
+  that changed are embedded again. Moved and renamed files keep their vectors, including
+  when they move between two tracked folders, so tidying up never means re-embedding.
 - `.gitignore` is respected. `.semantixignore` files work in any directory, and a global one
   lives at `~/.semantix/ignore`.
 - All data lives under `~/.semantix`.

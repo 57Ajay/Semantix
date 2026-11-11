@@ -316,9 +316,14 @@ picking which groups to embed now, or not now.
 | Size and modification time unchanged | Skipped without reading the file |
 | Timestamp changed, content identical | Recorded as unchanged, nothing embedded |
 | Content changed | Embedded again; unchanged parts of text files keep their vectors |
-| File moved or renamed | Recognised by its content hash; only the path is updated |
+| File moved or renamed | Recognised by its content hash; only the path is updated. This also works when the file moves from one tracked location to another |
 | File deleted, or now ignored | Removed from the index |
 | New file | Embedded |
+
+A move is recognised when a new file has the same content as an indexed file that is no longer
+at its old path. If the old file is still there, the new one is a copy and is treated as a new
+file. A file moved into a location whose rules leave it out (an ignored pattern, a file type
+that location does not include) is removed from the index, as any other excluded file would be.
 
 Files up to 64 MB are hashed completely. Larger files are identified by their size plus three
 1 MB samples from the start, middle and end.
