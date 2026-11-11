@@ -21,7 +21,7 @@ else
 fi
 
 echo "== Installing semantix (torch backend: $BACKEND)"
-uv tool install --force --torch-backend "$BACKEND" "$SOURCE"
+uv tool install --force --refresh-package semantix --torch-backend "$BACKEND" "$SOURCE"
 SEMANTIX="$(uv tool dir --bin)/semantix"
 PYTHON="$(uv tool dir)/semantix/bin/python"
 
