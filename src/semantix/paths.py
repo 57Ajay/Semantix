@@ -62,6 +62,15 @@ class Paths:
         digest = hashlib.blake2b(str(self.home).encode(), digest_size=6).hexdigest()
         return Path(tempfile.gettempdir()) / f"semantix-{os.getuid()}-{digest}.sock"
 
+    def index_bytes(self) -> int:
+        total = 0
+        for suffix in ("", "-wal"):
+            try:
+                total += os.path.getsize(str(self.db) + suffix)
+            except OSError:
+                pass
+        return total
+
     def ensure(self) -> Paths:
         for directory in (self.home, self.index_dir, self.models, self.run_dir, self.logs_dir):
             directory.mkdir(parents=True, exist_ok=True)

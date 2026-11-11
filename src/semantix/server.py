@@ -22,6 +22,10 @@ log = logging.getLogger("semantix.server")
 IDLE_CHECK_SECONDS = 30
 
 
+class AlreadyRunning(EngineError):
+    pass
+
+
 class _Server(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -170,7 +174,7 @@ class Daemon:
         socket_path = self.paths.socket
         if socket_path.exists():
             if _alive(socket_path):
-                raise EngineError("semantix is already running")
+                raise AlreadyRunning("semantix is already running")
             socket_path.unlink()
         previous = os.umask(0o077)
         try:

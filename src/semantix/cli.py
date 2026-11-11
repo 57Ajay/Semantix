@@ -284,10 +284,12 @@ def start(
     config = Config.load(paths.config)
     if foreground:
         from .engine import EngineError
-        from .server import run
+        from .server import AlreadyRunning, run
 
         try:
             run(paths)
+        except AlreadyRunning:
+            console.print("semantix is already running")
         except EngineError as error:
             raise fail(str(error)) from None
         return
@@ -329,7 +331,7 @@ def offline_status(paths: Paths, config: Config) -> dict[str, Any]:
         try:
             index.update(store.counts())
             index["vectors"] = sum(index["chunks"].values())
-            index["db_bytes"] = paths.db.stat().st_size
+            index["db_bytes"] = paths.index_bytes()
             roots = store.root_summaries()
             failures = store.error_files()
         finally:
@@ -838,7 +840,12 @@ def list_tracked(as_json: Annotated[bool, typer.Option("--json", help="Print mac
         return
     table = Table(box=None, padding=(0, 2), header_style="dim")
     for column in ("Location", "Files", "Contents", "Waiting", "Last sync", "Rules"):
-        table.add_column(column, justify="right" if column in ("Files", "Waiting") else "left")
+        table.add_column(
+            column,
+            justify="right" if column in ("Files", "Waiting") else "left",
+            overflow="fold",
+            no_wrap=column in ("Files", "Waiting", "Last sync"),
+        )
     for root in info["roots"]:
         contents = ", ".join(f"{count} {kind}" for kind, count in sorted(root["kinds"].items(), key=lambda pair: KINDS.index(pair[0])))
         selection = root["selection"] or {}

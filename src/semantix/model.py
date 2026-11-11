@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ctypes
 import logging
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -72,6 +74,15 @@ def normalize(vectors: np.ndarray, dimension: int) -> np.ndarray:
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     return np.ascontiguousarray(vectors / norms)
+
+
+def release_memory() -> None:
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except (OSError, AttributeError):
+        pass
 
 
 class Embedder:
@@ -155,6 +166,7 @@ class Embedder:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            release_memory()
             log.info("model unloaded")
 
     def require(self, capability: str) -> None:

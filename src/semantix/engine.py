@@ -1060,7 +1060,7 @@ class Engine:
             "index": {
                 **self.store.counts(),
                 "vectors": len(self.index),
-                "db_bytes": self.paths.db.stat().st_size if self.paths.db.exists() else 0,
+                "db_bytes": self.paths.index_bytes(),
             },
             "roots": self.store.root_summaries(),
             "errors": self.store.error_files(),

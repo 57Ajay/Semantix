@@ -1,0 +1,544 @@
+# Semantix documentation
+
+- [Concepts](#concepts)
+- [Setup](#setup)
+- [Command reference](#command-reference)
+- [What gets embedded](#what-gets-embedded)
+- [Ignore rules](#ignore-rules)
+- [How sync behaves](#how-sync-behaves)
+- [How search behaves](#how-search-behaves)
+- [Settings](#settings)
+- [The background service](#the-background-service)
+- [Storage and privacy](#storage-and-privacy)
+- [Performance and memory](#performance-and-memory)
+- [Architecture](#architecture)
+- [Development](#development)
+- [Limits and untested areas](#limits-and-untested-areas)
+
+## Concepts
+
+**Service.** A background process that holds the model, the settings and the vector index in
+memory. Every command talks to it over a local Unix socket. It is started by `semantix start`,
+or automatically by the first command that needs it.
+
+**Tracked location.** A directory or single file you have synced. Semantix remembers it, along
+with the choices you made for it (which file types, which extensions to skip, which patterns
+to exclude). `semantix list` shows them.
+
+**Part.** The unit that gets one vector. A text file is split into several parts, an image is
+one part, a video or audio file is one part per segment. Search results are parts, which is
+why a result carries a line range or a timestamp.
+
+**Home.** `~/.semantix`, where everything lives. Set the `SEMANTIX_HOME` environment variable
+to use another directory.
+
+## Setup
+
+```bash
+semantix setup
+```
+
+Setup walks through four choices and then starts the service.
+
+1. **Capabilities.** Text and code are always on. Images, video and audio are optional. The
+   model ships as one 1.5 GB file, so this choice does not change the download. It changes how
+   much is loaded into memory: the image and audio encoders are simply left out when you do
+   not want them. Video uses the image encoder.
+2. **Speed preset** (only asked when no GPU is found and images or video are on). See
+   [presets](#presets).
+3. **Vector size.** 768 is the model's native size. 512, 256 and 128 store less at some cost
+   in quality; 128 is only reasonable for text-only use.
+4. **Autostart.** Whether to start the service at login.
+
+Everything can be changed later with `semantix config`. For scripts, setup also runs without
+questions:
+
+```bash
+semantix setup --yes --capabilities text,image --dimension 768 --preset balanced --no-autostart
+```
+
+### Device
+
+`model.device` is `auto` by default: CUDA if available, then Apple Metal (MPS), then CPU. On
+CUDA the model runs in bfloat16 when the GPU supports it, otherwise float32. Apple Metal and
+CPU use float32. float16 is never used because the model produces invalid output in it.
+
+## Command reference
+
+Every command accepts `--help`.
+
+### `semantix sync [PATHS...]`
+
+Embeds new and changed files.
+
+- With paths: each path is resolved to its full location first. A path inside an already
+  tracked location is treated as part of it. Anything else becomes a new tracked location.
+- Without paths: checks every tracked location.
+
+In both cases it shows a plan and waits for your answer before embedding.
+
+| Option | Meaning |
+| --- | --- |
+| `--only code,image` | Only these types: `code`, `text`, `image`, `video`, `audio` |
+| `--skip-ext .csv,.log` | Leave out these extensions |
+| `--exclude 'pattern'` | Ignore pattern, same syntax as `.gitignore`; repeatable |
+| `--yes`, `-y` | Embed everything in the plan without asking |
+| `--dry-run` | Show the plan and stop |
+| `--force` | Embed again even if nothing changed |
+| `--skip-large` | Leave out files above the size limits |
+
+`--only`, `--skip-ext` and `--exclude` are remembered for the tracked location, so later syncs
+apply them without being told again. To change them later, pass them again while syncing the
+location's own path.
+
+### `semantix search QUERY`
+
+| Option | Meaning |
+| --- | --- |
+| `--limit N`, `-n N` | Number of results (default 10) |
+| `--type code,image`, `-t` | Only these file types |
+| `--in PATH` | Only results under this directory or file |
+| `--like FILE` | Find things similar to a file instead of using a text query |
+| `--mode hybrid\|vector\|keyword` | See [how search behaves](#how-search-behaves) |
+| `--per-file N` | Maximum results from one file (default 2, 0 for no cap) |
+| `--min-score X` | Hide results below this score |
+| `--lines N`, `-l N` | Lines of text to preview per result (default 6, 0 for none) |
+| `--paths` | Print only `path:lines`, one per line |
+| `--json` | Machine readable output, including the full text of each part |
+| `--open`, `-o` | Open the best match with the system's default application |
+
+### `semantix status`
+
+Shows whether the service is running, the model state and device, the capabilities, the index
+contents per file type, files that are waiting or failed, and a running sync if there is one.
+Works when the service is stopped. `--json` prints everything.
+
+### `semantix list`
+
+Tracked locations with file counts, waiting files, the last sync time and remembered rules.
+
+### `semantix forget PATH`
+
+Removes a location from the index. Your files are never modified.
+
+- If the path is a tracked location, it stops being tracked.
+- If the path is inside one, its files are removed and the path is added to that location's
+  excludes, so the next sync does not bring it back.
+
+### `semantix check PATH`
+
+Explains whether a path would be embedded and, if not, which rule or setting leaves it out and
+which file that rule comes from.
+
+### `semantix start`, `stop`, `restart`
+
+`start` launches the service in the background and returns once the model is loaded. `stop`
+ends it and frees its memory. `start --foreground` runs it in the terminal, which is what the
+autostart units use.
+
+### `semantix autostart enable|disable|status`
+
+See [the background service](#the-background-service).
+
+### `semantix config`
+
+| Form | Meaning |
+| --- | --- |
+| `semantix config` | Show every setting, its value and meaning |
+| `semantix config get KEY` | Print one value |
+| `semantix config set KEY VALUE` | Change one value |
+| `semantix config preset NAME` | Apply `quality`, `balanced` or `fast` |
+| `semantix config path` | Print where settings, ignore rules, index, model and log live |
+
+A running service picks changes up immediately. Changing capabilities or the device makes it
+reload the model.
+
+## What gets embedded
+
+### File types
+
+| Type | Recognised by |
+| --- | --- |
+| `code` | Source, markup and configuration extensions (`.py`, `.ts`, `.go`, `.rs`, `.sql`, `.yaml`, `.tf`, `.json`, `.html` and many more), names such as `Dockerfile` and `Makefile`, and any text file starting with `#!` |
+| `text` | `.md`, `.txt`, `.rst`, `.org`, `.tex`, `.csv`, `.log` and similar, names such as `README`, and any other file that looks like UTF-8 text |
+| `image` | `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`, `.tif`, `.tiff` |
+| `video` | `.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, `.m4v`, `.wmv`, `.flv`, `.mpg`, `.mpeg` |
+| `audio` | `.mp3`, `.wav`, `.flac`, `.ogg`, `.opus`, `.m4a`, `.aac`, `.wma` |
+
+Files with an unknown extension are sniffed: if the first 4 KB are valid text they are treated
+as text, otherwise they are skipped as unsupported. Jupyter notebooks are reduced to the
+source of their cells.
+
+### Text and code
+
+A file is split into parts of roughly `index.chunk_chars` characters (default 1600). Splits
+prefer natural boundaries: an unindented line after a blank line (a new function, class or
+paragraph) or a Markdown heading. Each part is embedded with its path as a title, which the
+model is trained to use, and stored with its line range.
+
+Because the boundaries follow the content, editing one function usually changes one or two
+parts. Unchanged parts keep their vectors.
+
+### Images
+
+One part per image. Animated images use their first frame. `image.tokens` sets how much detail
+the model sees (default 280).
+
+### Video
+
+A video is sampled at `video.fps` frames per second (default 1) and cut into segments of
+`video.segment_seconds` (default 30). Each segment becomes one part with its start and end
+time. If audio is enabled and the video has a soundtrack, the soundtrack is embedded too, as
+separate parts with the same timestamps, so a query can match what is said as well as what is
+shown. Results from the soundtrack are labelled `soundtrack`.
+
+### Audio
+
+Cut into segments of `audio.segment_seconds` (default 30), converted to mono 16 kHz. Silent
+segments and tails shorter than one second are dropped.
+
+### Duplicates
+
+An image, video or audio file with exactly the same content as one already embedded reuses its
+vectors and is not embedded again.
+
+## Ignore rules
+
+Rules use `.gitignore` syntax. They are applied in layers, and a later layer overrides an
+earlier one:
+
+1. **Built-in rules.** Dependency and build directories (`node_modules`, `.venv`,
+   `__pycache__`, `dist`, `build`, `target` and similar), version control directories, lock
+   files, minified files, archives, binaries, model weights, databases, and secrets (`.env`,
+   `*.pem`, `*.key`, SSH private keys).
+2. **`.gitignore` files**, including those in parent directories up to the top of the
+   repository. Turn this off with `semantix config set index.respect_gitignore false`.
+3. **The global file**, `~/.semantix/ignore`.
+4. **`.semantixignore` files**, in the directory being scanned, any directory below it, and
+   any directory above it.
+5. **`--exclude` patterns** remembered for the tracked location.
+
+Use `!pattern` to bring something back. For example, if git ignores a `screenshots/` folder
+that you do want searchable, put this in a `.semantixignore` next to it:
+
+```gitignore
+!screenshots/
+```
+
+A directory that is ignored is not entered, so to bring back something inside an ignored
+directory, bring back the directory itself.
+
+**Naming a file directly overrides the rules.** `semantix sync notes/private.log` embeds that
+file even if a rule ignores `*.log`, and remembers it so later syncs keep it. `semantix forget`
+undoes that.
+
+`semantix check PATH` tells you which layer and which file decided.
+
+## How sync behaves
+
+### The plan
+
+Before embedding anything, sync scans and prints a plan per tracked location:
+
+- files per type, split into new and changed, with size and estimated time
+- how many were deleted from disk, moved or renamed, or are unchanged
+- what was skipped and why (ignored, unsupported type, type not selected)
+- files above the size limits, listed individually
+
+Scanning only reads file sizes and timestamps, so it is quick. Embedding is the expensive
+step, and it always waits for your confirmation unless you pass `--yes`.
+
+For a new location you are first asked what to embed: everything, chosen file types, or
+everything except chosen extensions. Then you choose between embedding everything in the plan,
+picking which groups to embed now, or not now.
+
+### Change detection
+
+| Situation | What happens |
+| --- | --- |
+| Size and modification time unchanged | Skipped without reading the file |
+| Timestamp changed, content identical | Recorded as unchanged, nothing embedded |
+| Content changed | Embedded again; unchanged parts of text files keep their vectors |
+| File moved or renamed | Recognised by its content hash; only the path is updated |
+| File deleted, or now ignored | Removed from the index |
+| New file | Embedded |
+
+Files up to 64 MB are hashed completely. Larger files are identified by their size plus three
+1 MB samples from the start, middle and end.
+
+### Waiting files
+
+Anything in a plan that you choose not to embed now is recorded as waiting. `semantix status`
+shows the count and the next `semantix sync` offers it again. A changed file that is waiting
+stays searchable with its old content, marked as changed since the last sync.
+
+### Large files
+
+Files above `limits.text_mb` (5), `limits.image_mb` (25), `limits.video_mb` (100) or
+`limits.audio_mb` (100) are listed with their size, duration and estimated time, and you are
+asked whether to include them. With `--yes` they are included; add `--skip-large` to leave them
+out. Set a limit to 0 to turn its warning off.
+
+### Estimates
+
+The first sync on a machine uses built-in rates and says so. After that, estimates use the
+speed measured on your device in earlier runs, separately for text, images and video, and
+audio.
+
+### Stopping
+
+Ctrl-C stops a sync after the batch in progress. Files that finished are saved; the rest are
+recorded as waiting. A file is saved only when all of its parts are done, so interrupting a
+long video discards the work on that one video.
+
+### Other behaviour
+
+- **Paths.** Every path is resolved to its full real location before it is stored, so
+  `semantix sync newfile.py` from inside a tracked directory and `semantix sync
+  ~/projects/newfile.py` from anywhere are the same thing.
+- **Nested locations.** Syncing a directory that contains already tracked locations absorbs
+  them into the new one, keeping their vectors.
+- **Unavailable locations.** If a tracked directory does not exist at sync time (an unplugged
+  drive, for example), it is skipped with a note and its index entries are kept. Use
+  `semantix forget` if it is gone for good.
+- **Capabilities turned off.** Files of a type whose capability is off are left alone: not
+  embedded, and not removed if they were embedded earlier.
+- **One sync at a time.** A second sync started while one is running is refused.
+
+## How search behaves
+
+### Modes
+
+- **hybrid** (default): vector similarity, plus a boost for parts that contain the query's
+  words.
+- **vector**: similarity only.
+- **keyword**: full-text match only. This works without the model.
+
+### One query, two embeddings
+
+The model is trained with different instructions for code search and for general search. A
+query is embedded both ways; code parts are compared against the code version and everything
+else against the general version.
+
+### Scores
+
+Raw similarity is not comparable across types: unrelated code tends to score around 0.65
+against any query, while a correct image often scores lower than that. To make one ranked list
+meaningful, each part's score is its similarity to your query **minus its average similarity
+to 32 fixed, unrelated reference queries**. A part that is equally similar to everything ends
+up near zero.
+
+In hybrid mode up to 0.08 is added for keyword matches, in proportion to how many of the
+query's words the part contains. Rare words count more, and filler words such as "the" and
+"with" are ignored.
+
+As a rough guide from testing on small collections: above 0.10 is a strong match, and below
+0.05 is weak and shown dimmed. `--json` output includes both the score and the raw similarity.
+
+`--like FILE` compares against a file instead of a text query and reports raw similarity. For
+a video or audio file it uses the first segment; for a text file, the first part.
+
+### Result labels
+
+| Label | Meaning |
+| --- | --- |
+| `keyword match` | The part contains at least half of the query's meaningful words |
+| `soundtrack` | The match is in a video's audio, not its picture |
+| `changed since last sync` | The file was modified and is waiting to be embedded again |
+| `file is gone` | The file no longer exists at that path |
+
+## Settings
+
+Settings live in `~/.semantix/config.toml`. Change them with `semantix config set`.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `model.id` | `google/embeddinggemma-2` | Hugging Face model id |
+| `model.capabilities` | `text,image,video,audio` | What is loaded into memory; text is always on |
+| `model.dimension` | `768` | Stored vector size: 768, 512, 256 or 128 |
+| `model.device` | `auto` | `auto`, `cuda`, `mps` or `cpu` |
+| `model.batch_size` | `0` | Text batch size; 0 picks 32 on CUDA, 16 on Metal, 4 on CPU |
+| `daemon.auto_start` | `true` | Start the service when a command needs it |
+| `daemon.idle_unload_minutes` | `0` | Unload the model after this many idle minutes; 0 never |
+| `index.chunk_chars` | `1600` | Target size of a text part |
+| `index.respect_gitignore` | `true` | Apply `.gitignore` files |
+| `index.follow_symlinks` | `false` | Follow symbolic links while scanning |
+| `limits.text_mb` | `5` | Warn before embedding text files above this size |
+| `limits.image_mb` | `25` | Same for images |
+| `limits.video_mb` | `100` | Same for videos |
+| `limits.audio_mb` | `100` | Same for audio |
+| `image.tokens` | `280` | Detail per image: 70, 140, 280, 560 or 1120 |
+| `video.fps` | `1.0` | Frames sampled per second |
+| `video.segment_seconds` | `30` | Segment length |
+| `video.frame_tokens` | `140` | Detail per frame: 70, 140 or 280 |
+| `video.audio_track` | `true` | Also embed the soundtrack |
+| `audio.segment_seconds` | `30` | Segment length |
+| `search.limit` | `10` | Default number of results |
+| `search.mode` | `hybrid` | Default mode |
+| `search.per_file` | `2` | Maximum results from one file |
+
+### Presets
+
+`semantix config preset NAME` sets three values at once.
+
+| Preset | `image.tokens` | `video.frame_tokens` | `video.fps` |
+| --- | --- | --- | --- |
+| `quality` | 280 | 140 | 1.0 |
+| `balanced` | 140 | 70 | 0.5 |
+| `fast` | 70 | 70 | 0.25 |
+
+### What a change affects
+
+- **Image, video, audio and chunk settings** apply to files embedded from then on. Existing
+  vectors stay valid and searchable. Run `semantix sync --force PATH` to redo a location.
+- **Lowering `model.dimension`** shortens the stored vectors in place. Nothing is embedded
+  again.
+- **Raising `model.dimension` or changing `model.id`** invalidates the stored vectors. You are
+  asked to confirm, every file becomes waiting, and `semantix sync` embeds everything again.
+- **Capabilities and device** make a running service reload the model. This is refused while a
+  sync is running; restart the service afterwards to apply it.
+
+## The background service
+
+### Start and stop
+
+`semantix start` returns when the model is loaded, which takes a few seconds once the files
+are in the disk cache and longer on the first start after a reboot. With `daemon.auto_start`
+on (the default), any command that needs the service starts it, so `start` is optional.
+
+`semantix stop` ends the service and frees the memory.
+
+### Autostart
+
+```bash
+semantix autostart enable
+```
+
+- **Linux:** writes `~/.config/systemd/user/semantix.service` and enables it. It starts at
+  your next login. For it to run before you log in, enable lingering for your user with
+  `loginctl enable-linger`.
+- **macOS:** writes `~/Library/LaunchAgents/com.semantix.daemon.plist` and loads it.
+
+`semantix autostart disable` removes it again.
+
+### Idle unload
+
+`semantix config set daemon.idle_unload_minutes 30` makes the service drop the model after 30
+idle minutes. The service itself stays up, and the next search loads the model again, which
+adds a few seconds to that one search.
+
+### Files
+
+| Path | Purpose |
+| --- | --- |
+| `~/.semantix/run/daemon.sock` | The socket, readable only by you |
+| `~/.semantix/run/daemon.pid` | Process id of the service |
+| `~/.semantix/logs/daemon.log` | Service log, rotated at 2 MB |
+
+If the home path is too long for a Unix socket, the socket is placed in the system temporary
+directory instead; `semantix status --json` shows where.
+
+## Storage and privacy
+
+```
+~/.semantix/
+├── config.toml      settings
+├── ignore           global ignore rules
+├── index/           semantix.db: files, parts, vectors and the keyword index
+├── models/          the downloaded model
+├── run/             socket and pid of the service
+└── logs/            service log
+```
+
+The index is a single SQLite database. Each part stores its vector as 4 bytes per dimension,
+so a 768-dimension part costs about 3 KB plus its text. On start the service loads all vectors
+into memory and searches them exactly; there is no approximate index.
+
+The text of every text part is stored in the index, for previews and keyword search. Keep that
+in mind before syncing directories with sensitive content, and note that secrets files are
+ignored by the built-in rules.
+
+The only network access is the model download during `semantix setup`. The service runs with
+Hugging Face's offline mode on and binds only a local socket.
+
+## Performance and memory
+
+Measured on a 4-core x86 CPU with no GPU, in float32:
+
+| Work | Speed |
+| --- | --- |
+| Text and code | About 3,000 characters per second (0.5 s per part) |
+| Image at 280 tokens | 4.1 s |
+| Image at 140 tokens | 1.8 s |
+| Image at 70 tokens | 0.7 s |
+| Video frame at 140 tokens | About 2 s, so a 30-second segment at 1 fps takes about a minute |
+| Audio | About 0.1 s per second of audio |
+| Search | About 0.1 s |
+| Service start | About 8 s with warm disk cache |
+
+| Loaded capabilities | Service memory |
+| --- | --- |
+| Text only | About 2.1 GB |
+| Everything | About 4 GB |
+
+A GPU should be much faster and use less memory per weight in bfloat16, but neither has been
+measured yet.
+
+While a sync is embedding, a search waits for the batch in progress. On a CPU a single video
+segment can hold a search up for a while.
+
+## Architecture
+
+| Module | Role |
+| --- | --- |
+| `cli.py` | Commands, prompts and output |
+| `client.py` | Talks to the service; starts and stops it |
+| `server.py` | The service: socket protocol, model loading, idle unload |
+| `engine.py` | Planning and running syncs, search, forget, check |
+| `scanner.py` | Walking directories, applying selection, hashing files |
+| `ignore.py` | Layered ignore rules |
+| `chunking.py` | Splitting text into parts |
+| `media.py` | Decoding images, video and audio |
+| `model.py` | Loading the model and embedding each modality |
+| `store.py` | The SQLite database |
+| `vindex.py` | The in-memory vector index and score calibration |
+| `config.py`, `paths.py` | Settings and file locations |
+| `autostart.py` | systemd and launchd integration |
+
+The CLI and the service exchange one JSON object per line. A request is `{"op": ..., "args":
+...}`; the service answers with zero or more progress events and a final `{"ok": true,
+"result": ...}` or `{"ok": false, "error": ...}`. Closing the connection during a sync cancels
+it.
+
+## Development
+
+```bash
+uv sync
+```
+
+```bash
+uv run pytest
+```
+
+```bash
+uv run ruff check src tests
+```
+
+The tests use a small fake embedder, so they run in about a second and do not need the model.
+
+## Limits and untested areas
+
+- **CUDA and Apple Metal have not been run.** Development and testing happened on a CPU-only
+  Linux machine. Device selection, bfloat16 on CUDA and the Metal fallback are implemented but
+  unverified.
+- **Autostart has not been exercised end to end.** The systemd unit and launchd plist are
+  generated and checked by tests, but enabling them was not possible in the development
+  environment. macOS as a whole is untested.
+- **Windows is not supported.** The service uses Unix sockets.
+- **PDFs and office documents are not embedded.**
+- **Vectors are searched exactly, in memory.** That is fast up to a few hundred thousand parts
+  (1 GB of memory per 350,000 parts at 768 dimensions) and has not been tested beyond small
+  collections.
+- **Score thresholds are rough.** The 0.05 and 0.10 guides come from small test collections.
+- **A long video is saved only when it completes**, so interrupting one loses that file's
+  progress.
