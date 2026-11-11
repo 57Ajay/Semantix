@@ -10,6 +10,12 @@ It embeds code, text, images, video and audio into one shared vector space with 
 any of them. Everything is stored on your machine. After the one-time model download nothing
 touches the network.
 
+[![Semantix demo: a sync followed by three searches](assets/semantix-demo.gif)](assets/semantix-demo.mp4)
+
+The demo is a real terminal session on a 4-core CPU with no GPU. The only edit is that the
+sync, which took 4 minutes 45 seconds, is fast-forwarded.
+[Watch it as a video](assets/semantix-demo.mp4).
+
 ```console
 $ semantix search "how did I deploy to aws"
  1  0.197  shop-api/.github/workflows/deploy.yml:1-16  code · keyword match
