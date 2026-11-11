@@ -374,6 +374,8 @@ def status(as_json: Annotated[bool, typer.Option("--json", help="Print machine r
     state = model["state"]
     if state == "ready":
         detail = f"[green]loaded[/] on {model['device']} ({model['dtype']})"
+        if model.get("gpu_memory_mb"):
+            detail += f", {model['gpu_memory_mb']:.0f} MB of GPU memory"
     elif state == "loading":
         detail = "[yellow]loading…[/]"
     elif state == "unloaded":
@@ -914,6 +916,118 @@ def check(target: Annotated[Path, typer.Argument(help="A file or directory to ex
     console.print(f"[dim]{' · '.join(details)}[/]")
     if info["error"]:
         console.print(f"[red]last error:[/] {info['error']}")
+
+
+def render_benchmark(report: dict[str, Any]) -> None:
+    environment = report["environment"]
+    hardware = environment.get("gpu") or f"{environment['cpu_count']} CPU threads"
+    if environment.get("gpu_memory_gb"):
+        hardware += f", {environment['gpu_memory_gb']} GB"
+    console.print(
+        f"\n[bold]{environment['device']}[/]  {hardware}  ·  torch {environment['torch']}  ·  "
+        f"python {environment['python']}  ·  {report['sizes']} workload"
+    )
+    names = list(report["dtypes"])
+    table = Table(box=None, padding=(0, 3), header_style="bold")
+    table.add_column("", style="dim", no_wrap=True)
+    for name in names:
+        table.add_column(name, no_wrap=True)
+
+    def cell(entry: dict[str, Any], key: str) -> str:
+        if "error" in entry:
+            return "[red]failed[/]" if key == "load" else ""
+        if key == "load":
+            return f"{entry['load_seconds']}s"
+        if key == "text":
+            return f"{entry['text']['characters_per_second']:,} chars/s"
+        if key == "query":
+            return f"{entry['query']['median_ms']} ms"
+        if key == "image":
+            return f"{entry['image']['seconds_per_image']}s each" if "image" in entry else "–"
+        if key == "video":
+            return f"{entry['video']['frames_per_second']} frames/s" if "video" in entry else "–"
+        if key == "audio":
+            return f"{entry['audio']['times_realtime']}x realtime" if "audio" in entry else "–"
+        if key == "memory":
+            memory = entry["memory"]
+            return f"{memory['gpu_peak_mb']} MB GPU" if "gpu_peak_mb" in memory else f"{memory.get('process_rss_mb', '?')} MB"
+        lowest = min(entry["agreement_with_cpu_float32"].values())
+        return f"[green]{lowest:.4f}[/]" if entry["agrees"] else f"[red]{lowest:.4f} differs[/]"
+
+    labels = (
+        ("load", "Model load"), ("text", "Text"), ("query", "One query"), ("image", "Image"), ("video", "Video"),
+        ("audio", "Audio"), ("memory", "Peak memory"), ("agreement", "Same as CPU float32"),
+    )
+    for key, label in labels:
+        table.add_row(label, *(cell(report["dtypes"][name], key) for name in names))
+    console.print(table)
+    for name in names:
+        if "error" in report["dtypes"][name]:
+            console.print(f"[red]{name} failed:[/] {report['dtypes'][name]['error']}")
+    run = report.get("end_to_end")
+    if run and "error" not in run:
+        console.print(
+            f"\nReal sync with {run['dtype']}: {run['embedded']} file(s), {human_bytes(run['bytes'])}, "
+            f"{run['parts']} part(s) in {human_time(run['seconds'])} (estimated {human_time(run['estimated_seconds'])}), "
+            f"{run['failed']} failed"
+        )
+        console.print(
+            f"Search: {run['search_median_ms']} ms median, expected file ranked first for "
+            f"{run['top1']} of {run['queries']} queries (in the top 3 for {run['top3']})"
+        )
+        for entry in run["checks"]:
+            if entry["rank"] != 1:
+                console.print(f"  [yellow]{entry['query']!r}[/] expected {entry['expected']}, got {', '.join(entry['top'])}")
+    elif run:
+        console.print(f"\n[red]Real sync failed:[/] {run['error']}")
+    fastest = report.get("fastest_dtype")
+    if fastest and fastest != report["default_dtype"]:
+        console.print(
+            f"\n{fastest} was faster than the default ({report['default_dtype']}) here. "
+            f"To use it: [bold]semantix config set model.dtype {fastest}[/]"
+        )
+
+
+@app.command()
+def benchmark(
+    device: Annotated[str, typer.Option(help="auto, cuda, mps or cpu")] = "auto",
+    dtype: Annotated[list[str] | None, typer.Option(help="Number formats to test: float32, bfloat16")] = None,
+    quick: Annotated[bool, typer.Option("--quick", help="Use the small workload even on a GPU")] = False,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Where to write the JSON report")] = None,
+) -> None:
+    """Measure embedding speed on this machine and check the results are correct."""
+    paths = get_paths().ensure()
+    config = Config.load(paths.config)
+    formats = split_values(dtype) or None
+    for name in formats or []:
+        if name not in ("float32", "bfloat16"):
+            raise fail("--dtype must be float32 or bfloat16")
+    if not model_present(paths, config):
+        console.print(f"Downloading [bold]{config.get('model.id')}[/] (about 1.5 GB)…")
+        from .model import download
+
+        try:
+            download(config.get("model.id"), paths.models)
+        except Exception as error:
+            raise fail(f"download failed: {error}") from None
+    if client.ping(paths) is not None:
+        errors.print("[yellow]The semantix service is running and shares this machine; stop it for cleaner numbers.[/]")
+    from . import benchmark as benchmark_module
+    from .model import ModelError
+
+    try:
+        with console.status("Benchmark: starting…") as status:
+            report = benchmark_module.run(
+                paths.models, device, formats, quick, say=lambda stage: status.update(f"Benchmark: {stage}…")
+            )
+    except (ModelError, RuntimeError) as error:
+        raise fail(str(error)) from None
+    render_benchmark(report)
+    target = output or Path(f"semantix-benchmark-{report['environment']['device']}.json")
+    target.write_text(json.dumps(report, indent=2) + "\n")
+    console.print(f"\nReport written to [bold]{target}[/]")
+    if not report["ok"]:
+        raise typer.Exit(1)
 
 
 def show_config(config: Config) -> None:

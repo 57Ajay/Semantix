@@ -42,9 +42,13 @@ def resolve_device(preference: str) -> str:
     return preference
 
 
-def resolve_dtype(device: str):
+def resolve_dtype(device: str, preference: str = "auto"):
     import torch
 
+    if preference == "float32":
+        return torch.float32
+    if preference == "bfloat16":
+        return torch.bfloat16
     if device == "cuda" and torch.cuda.is_bf16_supported():
         return torch.bfloat16
     return torch.float32
@@ -104,7 +108,7 @@ class Embedder:
 
     def signature(self) -> tuple:
         get = self.config.get
-        return (get("model.id"), tuple(get("model.capabilities")), get("model.device"))
+        return (get("model.id"), tuple(get("model.capabilities")), get("model.device"), get("model.dtype"))
 
     def load(self) -> None:
         with self._lock:
@@ -125,7 +129,7 @@ class Embedder:
             transformers_logging.disable_progress_bar()
 
             device = resolve_device(self.config.get("model.device"))
-            dtype = resolve_dtype(device)
+            dtype = resolve_dtype(device, self.config.get("model.dtype"))
             config_kwargs: dict[str, Any] = {}
             if not ({"image", "video"} & set(self.capabilities)):
                 config_kwargs["vision_config"] = None
@@ -168,6 +172,13 @@ class Embedder:
                 torch.cuda.empty_cache()
             release_memory()
             log.info("model unloaded")
+
+    def gpu_memory_mb(self) -> float | None:
+        if self._model is None or self.device != "cuda":
+            return None
+        import torch
+
+        return round(torch.cuda.memory_allocated() / 1048576, 1)
 
     def require(self, capability: str) -> None:
         if capability not in self.capabilities:

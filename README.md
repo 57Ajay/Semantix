@@ -23,15 +23,21 @@ $ semantix search "a bee on a flower" --type video
 
 - Linux or macOS
 - Python 3.11 or newer and [uv](https://docs.astral.sh/uv/)
-- About 5 GB of disk for the libraries and the model (the model is 1.5 GB)
+- Disk: 1.5 GB for the model, plus 1.3 GB of libraries with CPU-only PyTorch or about 6 GB
+  with the NVIDIA build
 - 2 GB of free memory for text only, 4 GB with images, video and audio
 - A GPU is optional. Semantix uses CUDA if it finds it, then Apple Metal, then the CPU
 
 ## Install
 
 ```bash
-uv tool install git+https://github.com/57Ajay/Semantix
+uv tool install --torch-backend auto git+https://github.com/57Ajay/Semantix
 ```
+
+`--torch-backend auto` makes uv pick the PyTorch build that fits the machine: the small
+CPU-only build when there is no NVIDIA GPU, or the CUDA build that matches the installed
+driver when there is one. Without the flag, Linux gets the newest CUDA build (about 6 GB),
+which also runs on a CPU but wastes the space and needs a recent driver to use a GPU.
 
 Or from a clone, for development:
 
@@ -83,6 +89,7 @@ moved or deleted, with a time estimate, before doing any work.
 | `semantix start` / `stop` / `restart` | Control the background service |
 | `semantix autostart enable` / `disable` | Start the service at login |
 | `semantix config` | Show or change settings |
+| `semantix benchmark` | Measure speed on this machine and verify the results |
 
 ## How it works
 
@@ -106,6 +113,12 @@ about 3,000 characters of text per second, 4 seconds per image at full detail, 2
 video frame. A GPU should be much faster but has not been measured yet. On a CPU, `semantix config preset balanced` roughly halves
 image and video time. Every sync shows an estimate first, based on what your machine actually
 measured in earlier runs.
+
+To measure your own machine and check that the results are correct:
+
+```bash
+semantix benchmark
+```
 
 ## Documentation
 

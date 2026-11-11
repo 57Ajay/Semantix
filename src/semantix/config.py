@@ -27,6 +27,7 @@ OPTIONS: dict[str, Option] = {
     ),
     "model.dimension": Option(768, "Stored vector size", DIMENSIONS),
     "model.device": Option("auto", "Compute device", ("auto", "cuda", "mps", "cpu")),
+    "model.dtype": Option("auto", "Number format; auto uses bfloat16 on CUDA when supported", ("auto", "float32", "bfloat16")),
     "model.batch_size": Option(0, "Text batch size, 0 picks one for the device", minimum=0),
     "daemon.auto_start": Option(True, "Start the background service on demand"),
     "daemon.idle_unload_minutes": Option(

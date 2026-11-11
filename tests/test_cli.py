@@ -51,3 +51,18 @@ def test_systemd_unit_and_launchd_plist(tmp_path):
     assert "SEMANTIX_HOME" in unit
     plist = autostart.launchd_plist(tmp_path / "daemon.log")
     assert b"com.semantix.daemon" in plist and b"RunAtLoad" in plist
+
+
+def test_benchmark_helpers():
+    import numpy as np
+
+    from semantix import benchmark
+
+    sources = benchmark.stdlib_sources(10_000)
+    assert [name for name, _text in sources[:3]] == ["json/decoder.py", "heapq.py", "textwrap.py"]
+    assert benchmark.candidate_dtypes("cpu", None) == ["float32", "bfloat16"]
+    assert benchmark.candidate_dtypes("mps", None) == ["float32"]
+    assert benchmark.candidate_dtypes("cuda", ["float32"]) == ["float32"]
+    unit = np.eye(4, dtype=np.float32)
+    assert benchmark.agreement({"text": unit}, {"text": unit, "image": unit}) == {"text": 1.0}
+    assert len(benchmark.tone(2)) == 32000 and benchmark.shape_image("red", "triangle").size == (1280, 720)

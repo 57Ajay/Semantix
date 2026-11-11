@@ -1,6 +1,7 @@
 # Semantix documentation
 
 - [Concepts](#concepts)
+- [Installing](#installing)
 - [Setup](#setup)
 - [Command reference](#command-reference)
 - [What gets embedded](#what-gets-embedded)
@@ -11,6 +12,7 @@
 - [The background service](#the-background-service)
 - [Storage and privacy](#storage-and-privacy)
 - [Performance and memory](#performance-and-memory)
+- [Benchmark and GPU testing](#benchmark-and-gpu-testing)
 - [Architecture](#architecture)
 - [Development](#development)
 - [Limits and untested areas](#limits-and-untested-areas)
@@ -31,6 +33,32 @@ why a result carries a line range or a timestamp.
 
 **Home.** `~/.semantix`, where everything lives. Set the `SEMANTIX_HOME` environment variable
 to use another directory.
+
+## Installing
+
+```bash
+uv tool install --torch-backend auto git+https://github.com/57Ajay/Semantix
+```
+
+PyTorch is by far the largest dependency, and which build you get decides both the disk use
+and whether a GPU can be used.
+
+| Machine | With `--torch-backend auto` | Without the flag |
+| --- | --- | --- |
+| Linux, no NVIDIA GPU | CPU-only build, 1.3 GB of libraries in total | Newest CUDA build, about 6 GB, runs on the CPU |
+| Linux, NVIDIA GPU | CUDA build matching the installed driver | Newest CUDA build, which needs a recent driver |
+| macOS | The standard build, which includes Apple Metal | The same |
+
+uv marks `--torch-backend` as experimental. To choose by hand, pass a value such as `cpu` or
+`cu126` instead of `auto`, or set the `UV_TORCH_BACKEND` environment variable.
+
+To switch builds later, for example after adding a GPU, install again with `--force`:
+
+```bash
+uv tool install --force --torch-backend auto git+https://github.com/57Ajay/Semantix
+```
+
+The index and the downloaded model live in `~/.semantix` and are not affected.
 
 ## Setup
 
@@ -62,6 +90,10 @@ semantix setup --yes --capabilities text,image --dimension 768 --preset balanced
 `model.device` is `auto` by default: CUDA if available, then Apple Metal (MPS), then CPU. On
 CUDA the model runs in bfloat16 when the GPU supports it, otherwise float32. Apple Metal and
 CPU use float32. float16 is never used because the model produces invalid output in it.
+
+`model.dtype` overrides the number format: `auto`, `float32` or `bfloat16`. bfloat16 halves
+the memory for the weights. Whether it is faster depends on the hardware, and
+`semantix benchmark` measures both and tells you.
 
 ## Command reference
 
@@ -139,6 +171,18 @@ autostart units use.
 ### `semantix autostart enable|disable|status`
 
 See [the background service](#the-background-service).
+
+### `semantix benchmark`
+
+Measures embedding speed on this machine and checks the results. See
+[benchmark and GPU testing](#benchmark-and-gpu-testing).
+
+| Option | Meaning |
+| --- | --- |
+| `--device cuda\|mps\|cpu` | Test a specific device instead of the automatic choice |
+| `--dtype float32,bfloat16` | Number formats to test |
+| `--quick` | Use the small workload even on a GPU |
+| `--output FILE`, `-o` | Where to write the JSON report |
 
 ### `semantix config`
 
@@ -357,6 +401,7 @@ Settings live in `~/.semantix/config.toml`. Change them with `semantix config se
 | `model.capabilities` | `text,image,video,audio` | What is loaded into memory; text is always on |
 | `model.dimension` | `768` | Stored vector size: 768, 512, 256 or 128 |
 | `model.device` | `auto` | `auto`, `cuda`, `mps` or `cpu` |
+| `model.dtype` | `auto` | `auto`, `float32` or `bfloat16` |
 | `model.batch_size` | `0` | Text batch size; 0 picks 32 on CUDA, 16 on Metal, 4 on CPU |
 | `daemon.auto_start` | `true` | Start the service when a command needs it |
 | `daemon.idle_unload_minutes` | `0` | Unload the model after this many idle minutes; 0 never |
@@ -395,7 +440,7 @@ Settings live in `~/.semantix/config.toml`. Change them with `semantix config se
   again.
 - **Raising `model.dimension` or changing `model.id`** invalidates the stored vectors. You are
   asked to confirm, every file becomes waiting, and `semantix sync` embeds everything again.
-- **Capabilities and device** make a running service reload the model. This is refused while a
+- **Capabilities, device and dtype** make a running service reload the model. This is refused while a
   sync is running; restart the service afterwards to apply it.
 
 ## The background service
@@ -481,11 +526,72 @@ Measured on a 4-core x86 CPU with no GPU, in float32:
 | Text only | About 2.1 GB |
 | Everything | About 4 GB |
 
-A GPU should be much faster and use less memory per weight in bfloat16, but neither has been
-measured yet.
+A GPU should be much faster, but has not been measured yet; see the results table below.
+
+On this CPU, which has the AVX512-BF16 and AMX instructions, bfloat16 was two to three times
+faster than float32 and used about a third less memory, with practically identical results.
+CPUs without those instructions are expected to be slower in bfloat16, which is why float32
+stays the default. `semantix benchmark` tells you which is faster on yours.
 
 While a sync is embedding, a search waits for the batch in progress. On a CPU a single video
 segment can hold a search up for a while.
+
+## Benchmark and GPU testing
+
+```bash
+semantix benchmark
+```
+
+The benchmark does three things and writes a JSON report next to where you ran it
+(`semantix-benchmark-<device>.json`).
+
+1. **Correctness.** A fixed set of text, image, video and audio inputs is embedded on the
+   device in each number format and compared with the same inputs embedded on the CPU in
+   float32. Each comparison must reach a cosine similarity of 0.99. This is what catches a
+   GPU or number format that silently produces wrong vectors.
+2. **Speed.** Text, single queries, images, video and audio are timed separately, with peak
+   memory.
+3. **A real sync and search.** A generated directory of Python source files, pictures, a video
+   and an audio file is synced through the same engine the service uses, then searched with
+   queries whose correct answer is known.
+
+It uses a temporary index, so your own index is not touched. It takes about two and a half
+minutes on a 4-core CPU. On a GPU it runs a larger workload.
+
+If a number format other than the default turns out faster and correct, the benchmark prints
+the command to switch to it.
+
+### Testing on a GPU, including Google Colab
+
+`scripts/gpu-test.sh` installs uv if needed, installs Semantix with the PyTorch build that
+matches the machine, reports whether PyTorch can see the GPU, runs the benchmark and prints
+the report. It works on any Linux or macOS machine.
+
+In Colab, choose **Runtime → Change runtime type → T4 GPU**, then run this in a cell:
+
+```bash
+!curl -LsSf https://raw.githubusercontent.com/57Ajay/Semantix/main/scripts/gpu-test.sh | bash
+```
+
+On any other machine:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/57Ajay/Semantix/main/scripts/gpu-test.sh | bash
+```
+
+Arguments after `bash -s --` are passed to the benchmark, for example
+`| bash -s -- --quick`. If the script reports that a GPU is present but PyTorch cannot use it,
+set the backend by hand and run it again, for example with `UV_TORCH_BACKEND=cu126` set in the
+environment.
+
+### Results
+
+| Machine | Format | Text | One query | Image (280 tokens) | Video (140 tokens) | Audio | Peak memory |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Intel Xeon with AVX512-BF16, 4 threads | float32 | 3,200 chars/s | 107 ms | 3.8 s each | 0.6 frames/s | 12x realtime | 4.1 GB |
+| Intel Xeon with AVX512-BF16, 4 threads | bfloat16 | 6,700 chars/s | 73 ms | 1.3 s each | 1.9 frames/s | 26x realtime | 2.8 GB |
+| NVIDIA T4 (Colab) | | not measured yet | | | | | |
+| Apple Silicon | | not measured yet | | | | | |
 
 ## Architecture
 
@@ -504,6 +610,7 @@ segment can hold a search up for a while.
 | `vindex.py` | The in-memory vector index and score calibration |
 | `config.py`, `paths.py` | Settings and file locations |
 | `autostart.py` | systemd and launchd integration |
+| `benchmark.py` | The benchmark: correctness check, timings, real sync and search |
 
 The CLI and the service exchange one JSON object per line. A request is `{"op": ..., "args":
 ...}`; the service answers with zero or more progress events and a final `{"ok": true,
@@ -530,7 +637,8 @@ The tests use a small fake embedder, so they run in about a second and do not ne
 
 - **CUDA and Apple Metal have not been run.** Development and testing happened on a CPU-only
   Linux machine. Device selection, bfloat16 on CUDA and the Metal fallback are implemented but
-  unverified.
+  unverified. bfloat16 itself was verified on the CPU for every modality. Run
+  `semantix benchmark` on a GPU to check that machine.
 - **Autostart has not been exercised end to end.** The systemd unit and launchd plist are
   generated and checked by tests, but enabling them was not possible in the development
   environment. macOS as a whole is untested.

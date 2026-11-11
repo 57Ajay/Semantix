@@ -1073,6 +1073,7 @@ class Engine:
                 "loaded": bool(getattr(embedder, "loaded", True)),
                 "device": getattr(embedder, "device", None),
                 "dtype": getattr(embedder, "dtype", None),
+                "gpu_memory_mb": embedder.gpu_memory_mb() if hasattr(embedder, "gpu_memory_mb") else None,
                 "capabilities": list(self.config.get("model.capabilities")),
                 "dimension": self.config.get("model.dimension"),
             },
