@@ -74,9 +74,7 @@ def get_paths() -> Paths:
 
 def display_path(path: str, cwd: str | None = None) -> str:
     cwd = cwd or os.getcwd()
-    if path == cwd:
-        return "."
-    if path.startswith(cwd.rstrip("/") + "/"):
+    if path != cwd and path.startswith(cwd.rstrip("/") + "/"):
         return path[len(cwd.rstrip("/")) + 1 :]
     user_home = str(Path.home())
     if path == user_home or path.startswith(user_home + "/"):

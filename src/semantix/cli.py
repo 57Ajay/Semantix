@@ -68,6 +68,10 @@ def human_time(seconds: float) -> str:
     return f"{hours}h {minutes:02d}m"
 
 
+def estimate(seconds: float) -> str:
+    return "under 1s" if seconds < 1 else f"about {human_time(seconds)}"
+
+
 def clock(seconds: float) -> str:
     seconds = int(seconds)
     hours, remainder = divmod(seconds, 3600)
@@ -359,8 +363,8 @@ def status(as_json: Annotated[bool, typer.Option("--json", help="Print machine r
 
     model = info["model"]
     table = Table.grid(padding=(0, 2))
-    table.add_column(style="bold")
-    table.add_column()
+    table.add_column(style="bold", no_wrap=True)
+    table.add_column(overflow="fold")
     if running:
         table.add_row("Service", f"[green]running[/] (pid {info['pid']}, up {human_time(info['uptime'])})")
     else:
@@ -491,7 +495,7 @@ def render_plan(plan: dict[str, Any]) -> None:
             length = f", {clock(entry['duration'])} long" if entry.get("duration") else ""
             console.print(
                 f"  {display_path(entry['path'])}  [dim]{entry['kind']}, {human_bytes(entry['size'])}{length}, "
-                f"about {human_time(entry['cost'])}[/]"
+                f"{estimate(entry['cost'])}[/]"
             )
         if len(plan["large"]) > 15:
             console.print(f"  [dim]…and {len(plan['large']) - 15} more[/]")
@@ -499,7 +503,7 @@ def render_plan(plan: dict[str, Any]) -> None:
     if totals["files"]:
         basis = "" if plan["measured"] else "  [dim](rough estimate until the first sync has run)[/]"
         console.print(
-            f"\n[bold]{totals['files']} file(s), {human_bytes(totals['bytes'])}, about {human_time(totals['cost'])} "
+            f"\n[bold]{totals['files']} file(s), {human_bytes(totals['bytes'])}, {estimate(totals['cost'])} "
             f"on {plan['device']}[/]{basis}"
         )
 
@@ -651,7 +655,7 @@ def sync(
             options = []
             for root in plan["roots"]:
                 for group in root["groups"]:
-                    label = f"{display_path(root['path'])}  {group['kind']}  {group['files']} file(s), about {human_time(group['cost'])}"
+                    label = f"{display_path(root['path'])}  {group['kind']}  {group['files']} file(s), {estimate(group['cost'])}"
                     options.append(questionary.Choice(label, value=[root["path"], group["kind"]], checked=True))
             picked = questionary.checkbox("Select what to embed now (the rest stays waiting):", choices=options).ask()
             if picked is None:
@@ -884,7 +888,11 @@ def check(target: Annotated[Path, typer.Argument(help="A file or directory to ex
     if not info["exists"]:
         console.print(f"{shown} does not exist.")
         raise typer.Exit(1)
-    verdict = "[green]included[/]" if info["included"] else f"[yellow]left out[/]: {info['reason']}"
+    reason = info["reason"]
+    if reason == "ignored" and info.get("source"):
+        source = info["source"]
+        reason = f"ignored by {display_path(source) if source.startswith('/') else source}"
+    verdict = "[green]included[/]" if info["included"] else f"[yellow]left out[/]: {reason}"
     console.print(f"{shown}  {verdict}")
     details = []
     if info["kind"]:
@@ -901,8 +909,8 @@ def check(target: Annotated[Path, typer.Argument(help="A file or directory to ex
 
 def show_config(config: Config) -> None:
     table = Table(box=None, padding=(0, 2), header_style="dim")
-    table.add_column("Setting")
-    table.add_column("Value")
+    table.add_column("Setting", no_wrap=True)
+    table.add_column("Value", no_wrap=True)
     table.add_column("Meaning", style="dim")
     for key, option in OPTIONS.items():
         value = config.get(key)

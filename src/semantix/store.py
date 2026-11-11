@@ -322,6 +322,28 @@ class Store:
         self._db.execute("DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE file_id = ?)", (file_id,))
         self._db.execute("DELETE FROM chunks WHERE file_id = ?", (file_id,))
 
+    def indexed_twin(self, digest: str, kind: str, exclude_path: str) -> int | None:
+        row = self._one(
+            "SELECT id FROM files WHERE hash = ? AND kind = ? AND status = ? AND path != ? LIMIT 1",
+            (digest, kind, STATUS_INDEXED, exclude_path),
+        )
+        return row[0] if row else None
+
+    def chunk_records(self, file_id: int) -> list[ChunkRecord]:
+        rows = self._all(
+            "SELECT ord, kind, start_line, end_line, start_sec, end_sec, hash, text, vec FROM chunks "
+            "WHERE file_id = ? ORDER BY ord, id",
+            (file_id,),
+        )
+        return [
+            ChunkRecord(
+                row["kind"], np.frombuffer(row["vec"], dtype=np.float32), ord=row["ord"],
+                start_line=row["start_line"], end_line=row["end_line"], start_sec=row["start_sec"],
+                end_sec=row["end_sec"], hash=row["hash"], text=row["text"],
+            )
+            for row in rows
+        ]
+
     def chunk_vectors_by_hash(self, file_id: int) -> dict[str, np.ndarray]:
         rows = self._all("SELECT hash, vec FROM chunks WHERE file_id = ? AND hash IS NOT NULL", (file_id,))
         return {row["hash"]: np.frombuffer(row["vec"], dtype=np.float32) for row in rows}
@@ -428,7 +450,12 @@ class Store:
             entry["files"] += row["n"]
             entry["bytes"] += row["bytes"] or 0
             entry[row["status"]] += row["n"]
-        chunks = {row["kind"]: row["n"] for row in self._all("SELECT kind, COUNT(*) AS n FROM chunks GROUP BY kind")}
+        chunks = {
+            row["kind"]: row["n"]
+            for row in self._all(
+                "SELECT f.kind AS kind, COUNT(*) AS n FROM chunks c JOIN files f ON f.id = c.file_id GROUP BY f.kind"
+            )
+        }
         return {"files": files, "chunks": chunks}
 
     def root_summaries(self) -> list[dict[str, Any]]:

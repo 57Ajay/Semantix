@@ -212,6 +212,9 @@ class Engine:
             old = self.embedder
             candidate = Embedder(fresh, self.paths.models)
             model_changed = candidate.signature() != old.signature()
+            if model_changed and self.sync_lock.locked():
+                self.config = previous
+                raise EngineError("saved, but a sync is running: run `semantix restart` when it finishes to apply it")
             if model_changed:
                 old.unload()
                 self.embedder = candidate
@@ -650,6 +653,24 @@ class Engine:
         run.finished.add(item.path)
         return {"event": "file", "path": item.path, "status": "ok", "chunks": len(records)}
 
+    def _reuse_twin(self, item: PlanItem, root_id: int, run: Run) -> dict[str, Any] | None:
+        if item.kind in TEXT_KINDS:
+            return None
+        if item.hash is None:
+            try:
+                item.hash = file_hash(item.path, item.size)
+            except OSError:
+                return None
+        twin = self.store.indexed_twin(item.hash, item.kind, item.path)
+        if twin is None:
+            return None
+        records = self.store.chunk_records(twin)
+        if any(len(record.vector) != self.index.dimension for record in records):
+            return None
+        event = self._commit(item, root_id, records, run)
+        event["reused"] = True
+        return event
+
     @staticmethod
     def _title(item: PlanItem) -> str:
         if item.path == item.root:
@@ -746,6 +767,11 @@ class Engine:
                 return
             loaded: list[tuple[PlanItem, Any]] = []
             for item in items[start : start + size]:
+                reused = self._reuse_twin(item, root_ids[item.root], run)
+                if reused:
+                    yield reused
+                    yield run.progress(item.path)
+                    continue
                 try:
                     loaded.append((item, media.load_image(item.path)))
                 except Exception as error:
@@ -769,6 +795,11 @@ class Engine:
         records: list[ChunkRecord] = []
         duration = item.duration or 0.0
         yield run.progress(item.path)
+        reused = self._reuse_twin(item, root_id, run)
+        if reused:
+            yield reused
+            yield run.progress(item.path)
+            return
         try:
             info = media.probe(item.path)
             duration = info.duration or duration
@@ -983,7 +1014,7 @@ class Engine:
         row = self.store.file_by_path(path)
         reason = None
         if verdict.ignored:
-            reason = f"ignored by {verdict.source}"
+            reason = "ignored"
         elif os.path.isfile(path):
             if kind is None:
                 reason = "unsupported file type"
@@ -1002,6 +1033,7 @@ class Engine:
             "kind": kind,
             "included": reason is None,
             "reason": reason,
+            "source": verdict.source if verdict.ignored else None,
             "status": row.status if row else None,
             "pinned": bool(row and row.pinned),
             "error": row.error if row else None,
