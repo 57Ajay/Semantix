@@ -18,6 +18,7 @@ log = logging.getLogger("semantix.model")
 
 QUERY_PROMPTS = {"search": "SearchQuery", "code": "CodeRetrieval"}
 CONTEXT_TOKENS = 8192
+NATIVE_BF16_CAPABILITY = 8
 FRAME_OVERHEAD_TOKENS = 4
 SEQUENCE_OVERHEAD_TOKENS = 64
 MAX_AUDIO_SECONDS = 300
@@ -66,9 +67,15 @@ def resolve_dtype(device: str, preference: str = "auto"):
         return torch.float32
     if preference == "bfloat16":
         return torch.bfloat16
-    if device == "cuda" and torch.cuda.is_bf16_supported():
+    if device == "cuda" and torch.cuda.is_bf16_supported() and native_bf16():
         return torch.bfloat16
     return torch.float32
+
+
+def native_bf16() -> bool:
+    import torch
+
+    return torch.cuda.get_device_capability()[0] >= NATIVE_BF16_CAPABILITY
 
 
 def local_snapshot(model_id: str, cache_dir: Path) -> Path | None:

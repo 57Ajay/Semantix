@@ -1,0 +1,263 @@
+{
+  "when": "2026-11-11T17:40:23+00:00",
+  "environment": {
+    "semantix": "0.1.0",
+    "python": "3.13.16",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 2,
+    "torch": "2.15.0+cu132",
+    "torch_cuda_build": "13.2",
+    "torch_threads": 1,
+    "device": "cuda",
+    "nvidia_smi": true,
+    "memory_gb": 12.7,
+    "gpu": "Tesla T4",
+    "gpu_memory_gb": 14.6,
+    "gpu_capability": "7.5",
+    "bf16_supported": true
+  },
+  "sizes": "large",
+  "overrides": {},
+  "command": "benchmark",
+  "dtypes": {
+    "bfloat16": {
+      "load_seconds": 4.27,
+      "agreement_with_cpu_float32": {
+        "text": 0.99995,
+        "query": 0.99996,
+        "image": 0.99995,
+        "video": 0.99998,
+        "audio": 0.99967
+      },
+      "agrees": true,
+      "text_batch": 32,
+      "media_batch": 8,
+      "text": {
+        "parts": 384,
+        "characters": 478595,
+        "seconds": 38.85,
+        "characters_per_second": 12319,
+        "parts_per_second": 9.88
+      },
+      "query": {
+        "runs": 30,
+        "median_ms": 80.2
+      },
+      "image": {
+        "images": 48,
+        "tokens": 280,
+        "seconds": 44.893,
+        "images_per_second": 1.07,
+        "seconds_per_image": 0.935
+      },
+      "video": {
+        "segments": 3,
+        "frames_per_segment": 30,
+        "tokens": 140,
+        "seconds": 33.8,
+        "frames_per_second": 2.66,
+        "seconds_per_segment": 11.267
+      },
+      "audio": {
+        "audio_seconds": 180,
+        "seconds": 2.543,
+        "times_realtime": 70.8
+      },
+      "memory": {
+        "gpu_peak_mb": 7374,
+        "process_rss_mb": 2114
+      },
+      "stage_errors": []
+    },
+    "float32": {
+      "load_seconds": 6.25,
+      "agreement_with_cpu_float32": {
+        "text": 1.0,
+        "query": 1.0,
+        "image": 1.0,
+        "video": 1.0,
+        "audio": 1.0
+      },
+      "agrees": true,
+      "text_batch": 32,
+      "media_batch": 8,
+      "text": {
+        "parts": 384,
+        "characters": 478595,
+        "seconds": 36.545,
+        "characters_per_second": 13096,
+        "parts_per_second": 10.51
+      },
+      "query": {
+        "runs": 30,
+        "median_ms": 59.6
+      },
+      "image": {
+        "images": 48,
+        "tokens": 280,
+        "seconds": 26.33,
+        "images_per_second": 1.82,
+        "seconds_per_image": 0.549
+      },
+      "video": {
+        "segments": 3,
+        "frames_per_segment": 30,
+        "tokens": 140,
+        "seconds": 22.862,
+        "frames_per_second": 3.94,
+        "seconds_per_segment": 7.621
+      },
+      "audio": {
+        "audio_seconds": 180,
+        "seconds": 2.297,
+        "times_realtime": 78.4
+      },
+      "memory": {
+        "gpu_peak_mb": 7280,
+        "process_rss_mb": 4375
+      },
+      "stage_errors": []
+    }
+  },
+  "limits": {
+    "context_tokens": 8192,
+    "video": [
+      {
+        "frame_tokens": 70,
+        "frames": 109,
+        "limit_frames": 109,
+        "tokens": 7196,
+        "fits": true,
+        "complete": true
+      },
+      {
+        "frame_tokens": 140,
+        "frames": 56,
+        "limit_frames": 56,
+        "tokens": 6890,
+        "fits": true,
+        "complete": true
+      },
+      {
+        "frame_tokens": 280,
+        "frames": 28,
+        "limit_frames": 28,
+        "tokens": 7226,
+        "fits": true,
+        "complete": true
+      }
+    ],
+    "audio": [
+      {
+        "seconds": 30,
+        "tokens": 754,
+        "fits": true,
+        "complete": true
+      },
+      {
+        "seconds": 60,
+        "tokens": 1504,
+        "fits": true,
+        "complete": true
+      },
+      {
+        "seconds": 300,
+        "tokens": 7504,
+        "fits": true,
+        "complete": true
+      }
+    ],
+    "ok": true
+  },
+  "default_dtype": "bfloat16",
+  "fastest_dtype": "float32",
+  "end_to_end": {
+    "files": 31,
+    "bytes": 1379699,
+    "estimated_seconds": 7.4,
+    "seconds": 66.43,
+    "embedded": 31,
+    "failed": 0,
+    "parts": 498,
+    "search_median_ms": 80.7,
+    "checks": [
+      {
+        "query": "decode a JSON document from a string",
+        "expected": "decoder.py",
+        "top": [
+          "decoder.py",
+          "decoder.py",
+          "encoder.py"
+        ],
+        "rank": 1,
+        "score": 0.2899
+      },
+      {
+        "query": "priority queue that pops the smallest item",
+        "expected": "heapq.py",
+        "top": [
+          "heapq.py",
+          "heapq.py",
+          "queue.py"
+        ],
+        "rank": 1,
+        "score": 0.2402
+      },
+      {
+        "query": "wrap a paragraph of text to a line width",
+        "expected": "textwrap.py",
+        "top": [
+          "textwrap.py",
+          "textwrap.py",
+          "difflib.py"
+        ],
+        "rank": 1,
+        "score": 0.2876
+      },
+      {
+        "query": "a red circle",
+        "expected": "red_circle.png",
+        "top": [
+          "red_circle.png",
+          "moving_dot.mp4",
+          "yellow_circle.png"
+        ],
+        "rank": 1,
+        "score": 0.2932
+      },
+      {
+        "query": "a blue square",
+        "expected": "blue_square.png",
+        "top": [
+          "blue_square.png",
+          "purple_square.png",
+          "statistics.py"
+        ],
+        "rank": 1,
+        "score": 0.289
+      },
+      {
+        "query": "an invoice showing the total amount due",
+        "expected": "invoice.png",
+        "top": [
+          "invoice.png",
+          "statistics.py",
+          "statistics.py"
+        ],
+        "rank": 1,
+        "score": 0.1646
+      }
+    ],
+    "top1": 6,
+    "top3": 6,
+    "queries": 6,
+    "memory": {
+      "gpu_peak_mb": 7375,
+      "process_rss_mb": 2436
+    },
+    "errors": [],
+    "dtype": "bfloat16"
+  },
+  "ok": true
+}

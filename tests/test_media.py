@@ -99,3 +99,18 @@ def test_oversized_segment_is_split_instead_of_failing():
     assert [(begin, end, len(frames)) for begin, end, frames in pieces] == [
         (0.0, 4.0, 4), (4.0, 8.0, 4), (8.0, 10.0, 2), (10.0, 13.0, 3),
     ]
+
+
+def test_auto_number_format_follows_the_gpu_generation(monkeypatch):
+    import torch
+
+    from semantix.model import resolve_dtype
+
+    monkeypatch.setattr(torch.cuda, "is_bf16_supported", lambda *args, **kwargs: True)
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *args, **kwargs: (7, 5))
+    assert resolve_dtype("cuda") == torch.float32
+    assert resolve_dtype("cuda", "bfloat16") == torch.bfloat16
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *args, **kwargs: (8, 9))
+    assert resolve_dtype("cuda") == torch.bfloat16
+    assert resolve_dtype("cuda", "float32") == torch.float32
+    assert resolve_dtype("cpu") == torch.float32 and resolve_dtype("mps") == torch.float32

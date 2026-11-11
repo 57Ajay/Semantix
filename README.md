@@ -94,8 +94,7 @@ moved or deleted, with a time estimate, before doing any work.
 ## How it works
 
 - A background service keeps the model, the settings and the vector index in memory, so a
-  query only has to embed the query text and compare vectors. A search takes about 0.1 s on
-  a CPU.
+  query only has to embed the query text and compare vectors.
 - Text and code are split into parts at natural boundaries. Videos and audio are split into
   30-second segments so a result can point at a timestamp.
 - Paths are stored in full, so it does not matter which directory you run a command from, and
@@ -108,11 +107,17 @@ moved or deleted, with a time estimate, before doing any work.
 
 ## Speed
 
-Embedding speed depends almost entirely on the device. Measured on a 4-core CPU without a GPU:
-about 3,000 characters of text per second, 4 seconds per image at full detail, 2 seconds per
-video frame. A GPU should be much faster but has not been measured yet. On a CPU, `semantix config preset balanced` roughly halves
-image and video time. Every sync shows an estimate first, based on what your machine actually
-measured in earlier runs.
+Embedding speed depends almost entirely on the device.
+
+| | Text | Image | Video | Audio |
+| --- | --- | --- | --- | --- |
+| 4-thread CPU | 3,600 chars/s | 3.3 s each | 0.7 frames/s | 14x realtime |
+| NVIDIA Tesla T4 | 13,100 chars/s | 0.55 s each | 3.9 frames/s | 78x realtime |
+
+A search takes 60 to 190 ms on either. On a CPU, `semantix config preset balanced` roughly
+halves image and video time. Every sync shows an estimate first, based on what your machine
+measured in earlier runs. More machines and the details are in
+[docs.md](docs.md#results).
 
 To measure your own machine and check that the results are correct:
 

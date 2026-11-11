@@ -271,13 +271,23 @@ def measure(embedder: Embedder, sizes: dict[str, int], chunks: list[str], say: C
 
         torch.cuda.reset_peak_memory_stats()
     result: dict[str, Any] = {"text_batch": embedder.text_batch_size(), "media_batch": embedder.media_batch_size()}
+    peaks: list[int] = []
 
     def stage(name: str, work: Callable[[], dict[str, Any]]) -> None:
         say(name)
+        cuda = embedder.device == "cuda"
+        if cuda:
+            import torch
+
+            torch.cuda.reset_peak_memory_stats()
         try:
             result[name] = work()
         except Exception as error:
             result[name] = {"error": describe(error)}
+        if cuda:
+            peak = round(torch.cuda.max_memory_allocated() / 1048576)
+            result[name]["gpu_peak_mb"] = peak
+            peaks.append(peak)
 
     def text() -> dict[str, Any]:
         embedder.embed_documents(chunks[:2])
@@ -341,6 +351,8 @@ def measure(embedder: Embedder, sizes: dict[str, int], chunks: list[str], say: C
         if name in embedder.capabilities:
             stage(name, work)
     result["memory"] = peak_memory(embedder)
+    if peaks:
+        result["memory"]["gpu_peak_mb"] = max(peaks)
     result["stage_errors"] = sorted(name for name in STAGES if "error" in result.get(name, {}))
     return result
 

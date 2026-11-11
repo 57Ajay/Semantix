@@ -92,8 +92,10 @@ semantix setup --yes --capabilities text,image --dimension 768 --preset balanced
 ### Device
 
 `model.device` is `auto` by default: CUDA if available, then Apple Metal (MPS), then CPU. On
-CUDA the model runs in bfloat16 when the GPU supports it, otherwise float32. Apple Metal and
-CPU use float32. float16 is never used because the model produces invalid output in it.
+CUDA the model runs in bfloat16 on GPUs that accelerate it (compute capability 8.0 and up,
+roughly the RTX 30 series and newer) and in float32 on older ones such as the T4, where
+bfloat16 measured slower. Apple Metal and CPU use float32. float16 is never used because the
+model produces invalid output in it.
 
 `model.dtype` overrides the number format: `auto`, `float32` or `bfloat16`. bfloat16 halves
 the memory for the weights. Whether it is faster depends on the hardware, and
@@ -336,7 +338,8 @@ out. Set a limit to 0 to turn its warning off.
 
 ### Estimates
 
-The first sync on a machine uses built-in rates and says so. After that, estimates use the
+The first sync on a machine uses built-in rates and says so. For NVIDIA GPUs those rates come
+from a Tesla T4, so they are pessimistic for faster cards. After that, estimates use the
 speed measured on your device in earlier runs, separately for text, images and video, and
 audio.
 
@@ -538,8 +541,8 @@ Measured on a 4-core x86 CPU with no GPU, in float32:
 | Text only | About 2.1 GB |
 | Everything | About 4 GB |
 
-A GPU should be much faster, but its speed has not been measured yet; see the results table
-below.
+A Tesla T4 measured about 4 times faster for text and 6 times faster for images, video and
+audio; see the [results](#results) table.
 
 bfloat16 uses about a third less memory on a CPU, but its speed depends on the processor: it
 was twice as fast as float32 on a CPU with the AVX512-BF16 instructions and three times slower
@@ -602,33 +605,51 @@ environment.
 
 ### Results
 
-All rows use the default detail settings: 280 tokens per image, 140 per video frame.
+All rows use the default detail settings: 280 tokens per image, 140 per video frame. The raw
+reports for the first two machines are in [`benchmarks/`](benchmarks).
 
 | Machine | Format | Text | One query | Image | Video | Audio | Peak memory |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| NVIDIA Tesla T4 (Colab), batches 32 and 8 | float32 | 13,100 chars/s | 60 ms | 0.55 s each | 3.9 frames/s | 78x realtime | 7.3 GB GPU |
+| NVIDIA Tesla T4 (Colab), batches 32 and 8 | bfloat16 | 12,300 chars/s | 80 ms | 0.94 s each | 2.7 frames/s | 71x realtime | 7.4 GB GPU |
 | Intel Xeon 3.1 GHz, 8 vCPU, 4 threads used | float32 | 3,600 chars/s | 115 ms | 3.3 s each | 0.7 frames/s | 14x realtime | 4.1 GB |
 | Intel Xeon 3.1 GHz, 8 vCPU, 4 threads used | bfloat16 | 1,200 chars/s | 184 ms | 8.5 s each | 0.2 frames/s | 5x realtime | 2.6 GB |
 | Intel Xeon 2.1 GHz with AVX512-BF16, 4 threads | float32 | 3,200 chars/s | 107 ms | 3.8 s each | 0.6 frames/s | 12x realtime | 4.1 GB |
 | Intel Xeon 2.1 GHz with AVX512-BF16, 4 threads | bfloat16 | 6,700 chars/s | 73 ms | 1.3 s each | 1.9 frames/s | 26x realtime | 2.8 GB |
-| NVIDIA T4 (Colab) | both | speed not measured yet | | | | | |
 | Apple Silicon | | not measured yet | | | | | |
 
-What these show so far:
+On the T4 the full run passed: every embedding matched the CPU reference (cosine 0.9997 or
+better in both formats), the longest allowed video and audio segments fit, and a real sync of
+31 files into 498 parts finished in 66 seconds with no failures and the expected file ranked
+first for all six test queries.
 
+What these show:
+
+- **A T4 is about 4 times faster than a 4-thread CPU for text and about 6 times faster for
+  images, video and audio.** That is less than a GPU usually gains. The T4 has no accelerated
+  bfloat16, and float16, which it does accelerate, cannot be used with this model. Newer GPUs
+  should do better, but none has been measured.
+- **On the T4, float32 beats bfloat16**: 1.7 times faster for images, 1.5 times for video,
+  slightly faster for text, with the same peak GPU memory. `model.dtype = auto` therefore
+  picks float32 on GPUs older than the generation that accelerates bfloat16 (compute
+  capability below 8.0, which includes the T4) and bfloat16 on newer ones. The newer-GPU half
+  of that rule follows the model's documentation and has not been measured here.
+- **Peak GPU memory was 7.3 GB** with the default batch sizes. Which stage reaches it is not
+  known from this run; later reports record the peak per stage. On a GPU with less memory,
+  Semantix halves the batch and retries when it runs out, and `model.batch_size` and
+  `model.media_batch_size` can be lowered by hand.
 - **bfloat16 on a CPU depends on the processor.** It was twice as fast on a CPU with the
   AVX512-BF16 instructions and three times slower on one without. float32 stays the CPU
   default; switch only if the benchmark on your machine says so.
-- **The T4 produces correct vectors in both formats.** On a Tesla T4 with PyTorch 2.15 built
-  for CUDA 13.2, text, query, image, video and audio embeddings matched the CPU reference with
-  a cosine similarity of 0.9997 or better in bfloat16 and in float32. That run stopped at the
-  video timing because of a bug that has since been fixed (see below), so there are no speed
-  numbers for it yet.
+- **A single query costs 60 to 190 ms everywhere.** Most of that is fixed overhead, so a GPU
+  matters for indexing far more than for searching.
 
 ### A bug this benchmark found
 
 Until it was fixed, the model's input was capped at 2,048 tokens. Text never reaches that, but
 a video segment does: 30 frames at 140 tokens need about 3,700. Any video segment longer than
-about 16 frames failed, on every device. The cap is now the model's real limit of 8,192
+about 16 frames failed, on every device. It surfaced on the first T4 run, which was the first
+to embed a full 30-frame segment. The cap is now the model's real limit of 8,192
 tokens, segments are sized so they cannot exceed it, and the benchmark checks the longest
 allowed video and audio segments on every run. The same review found that audio segments
 longer than 30 seconds were being cut to 30 by the audio processor; that is fixed too. The
@@ -676,10 +697,11 @@ The tests use a small fake embedder, so they run in about a second and do not ne
 
 ## Limits and untested areas
 
-- **CUDA is partly verified, Apple Metal not at all.** On a Tesla T4, loading in bfloat16 and
-  float32 and the correctness comparison against the CPU passed for every modality. Timings,
-  larger batches on a real GPU and a full sync have not completed there yet. Apple Metal has
-  never been run. Run `semantix benchmark` on a GPU to check that machine.
+- **CUDA is verified on one GPU, Apple Metal on none.** The full benchmark passed on a Tesla
+  T4 in both number formats. No other NVIDIA GPU has been run, so the automatic choice of
+  bfloat16 on newer GPUs is untested, and the background service itself was not run on a GPU
+  (the benchmark uses the same engine without the service around it). Apple Metal has never
+  been run. Run `semantix benchmark` on a new machine to check it.
 - **Autostart has not been exercised end to end.** The systemd unit and launchd plist are
   generated and checked by tests, but enabling them was not possible in the development
   environment. macOS as a whole is untested.

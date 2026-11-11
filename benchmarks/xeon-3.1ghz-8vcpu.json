@@ -1,0 +1,202 @@
+{
+  "when": "2026-11-11T02:59:34+00:00",
+  "environment": {
+    "semantix": "0.1.0",
+    "python": "3.12.14",
+    "platform": "Linux-7.0.0-1014-gcp-x86_64-with-glibc2.43",
+    "machine": "x86_64",
+    "cpu_count": 8,
+    "torch": "2.15.0+cpu",
+    "torch_cuda_build": null,
+    "torch_threads": 4,
+    "device": "cpu",
+    "nvidia_smi": false,
+    "memory_gb": 31.3
+  },
+  "sizes": "small",
+  "command": "benchmark",
+  "dtypes": {
+    "float32": {
+      "load_seconds": 12.48,
+      "agreement_with_cpu_float32": {
+        "text": 1.0,
+        "query": 1.0,
+        "image": 1.0,
+        "video": 1.0,
+        "audio": 1.0
+      },
+      "agrees": true,
+      "text_batch": 4,
+      "media_batch": 1,
+      "text": {
+        "parts": 16,
+        "characters": 19188,
+        "seconds": 5.38,
+        "characters_per_second": 3567,
+        "parts_per_second": 2.97
+      },
+      "query": {
+        "runs": 10,
+        "median_ms": 115.0
+      },
+      "image": {
+        "images": 3,
+        "tokens": 280,
+        "seconds": 9.941,
+        "images_per_second": 0.3,
+        "seconds_per_image": 3.314
+      },
+      "video": {
+        "segments": 1,
+        "frames_per_segment": 6,
+        "tokens": 140,
+        "seconds": 8.866,
+        "frames_per_second": 0.68,
+        "seconds_per_segment": 8.866
+      },
+      "audio": {
+        "audio_seconds": 30,
+        "seconds": 2.081,
+        "times_realtime": 14.4
+      },
+      "memory": {
+        "process_rss_mb": 4118
+      }
+    },
+    "bfloat16": {
+      "load_seconds": 2.81,
+      "agreement_with_cpu_float32": {
+        "text": 0.99995,
+        "query": 0.99995,
+        "image": 0.99995,
+        "video": 0.99998,
+        "audio": 0.99962
+      },
+      "agrees": true,
+      "text_batch": 4,
+      "media_batch": 1,
+      "text": {
+        "parts": 16,
+        "characters": 19188,
+        "seconds": 16.436,
+        "characters_per_second": 1167,
+        "parts_per_second": 0.97
+      },
+      "query": {
+        "runs": 10,
+        "median_ms": 183.7
+      },
+      "image": {
+        "images": 3,
+        "tokens": 280,
+        "seconds": 25.458,
+        "images_per_second": 0.12,
+        "seconds_per_image": 8.486
+      },
+      "video": {
+        "segments": 1,
+        "frames_per_segment": 6,
+        "tokens": 140,
+        "seconds": 28.857,
+        "frames_per_second": 0.21,
+        "seconds_per_segment": 28.857
+      },
+      "audio": {
+        "audio_seconds": 30,
+        "seconds": 6.278,
+        "times_realtime": 4.8
+      },
+      "memory": {
+        "process_rss_mb": 2617
+      }
+    }
+  },
+  "default_dtype": "float32",
+  "fastest_dtype": "float32",
+  "end_to_end": {
+    "files": 11,
+    "bytes": 795119,
+    "estimated_seconds": 70.2,
+    "seconds": 103.59,
+    "embedded": 11,
+    "failed": 0,
+    "parts": 56,
+    "search_median_ms": 192.7,
+    "checks": [
+      {
+        "query": "decode a JSON document from a string",
+        "expected": "decoder.py",
+        "top": [
+          "decoder.py",
+          "decoder.py",
+          "textwrap.py"
+        ],
+        "rank": 1,
+        "score": 0.2904
+      },
+      {
+        "query": "priority queue that pops the smallest item",
+        "expected": "heapq.py",
+        "top": [
+          "heapq.py",
+          "heapq.py",
+          "textwrap.py"
+        ],
+        "rank": 1,
+        "score": 0.2413
+      },
+      {
+        "query": "wrap a paragraph of text to a line width",
+        "expected": "textwrap.py",
+        "top": [
+          "textwrap.py",
+          "textwrap.py",
+          "heapq.py"
+        ],
+        "rank": 1,
+        "score": 0.2872
+      },
+      {
+        "query": "a red circle",
+        "expected": "red_circle.png",
+        "top": [
+          "red_circle.png",
+          "moving_dot.mp4",
+          "yellow_circle.png"
+        ],
+        "rank": 1,
+        "score": 0.2925
+      },
+      {
+        "query": "a blue square",
+        "expected": "blue_square.png",
+        "top": [
+          "blue_square.png",
+          "purple_square.png",
+          "green_triangle.png"
+        ],
+        "rank": 1,
+        "score": 0.2893
+      },
+      {
+        "query": "an invoice showing the total amount due",
+        "expected": "invoice.png",
+        "top": [
+          "invoice.png",
+          "heapq.py",
+          "sweep.wav"
+        ],
+        "rank": 1,
+        "score": 0.1595
+      }
+    ],
+    "top1": 6,
+    "top3": 6,
+    "queries": 6,
+    "memory": {
+      "process_rss_mb": 4129
+    },
+    "dtype": "float32"
+  },
+  "ok": true
+}

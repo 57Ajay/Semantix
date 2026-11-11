@@ -52,8 +52,11 @@ ANCHOR_QUERIES = (
     "css styles for a button", "a football match", "kubernetes deployment manifest", "a bowl of fruit",
 )
 EXECUTION_ORDER = {"code": 0, "text": 0, "image": 1, "audio": 2, "video": 3}
-CPU_RATES = {"text": 3.3e-4, "vision": 0.0145, "audio": 0.1}
-DEVICE_SPEEDUP = {"cuda": 40.0, "mps": 8.0, "cpu": 1.0}
+DEFAULT_RATES = {
+    "cpu": {"text": 3.3e-4, "vision": 0.0145, "audio": 0.1},
+    "cuda": {"text": 8e-5, "vision": 2e-3, "audio": 0.013},
+    "mps": {"text": 1.6e-4, "vision": 7e-3, "audio": 0.05},
+}
 
 
 class EngineError(RuntimeError):
@@ -247,7 +250,7 @@ class Engine:
         measured = self.store.get_stat(f"rate.{device}.{name}")
         if measured:
             return measured
-        return CPU_RATES[name] / DEVICE_SPEEDUP.get(device, 1.0)
+        return DEFAULT_RATES.get(device, DEFAULT_RATES["cpu"])[name]
 
     def _estimate(self, kind: str, size: int, duration: float | None) -> float:
         if kind in TEXT_KINDS:
