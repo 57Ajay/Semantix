@@ -17,8 +17,11 @@ def daemon(home, embedder):
     instance = Daemon(home, engine)
     thread = threading.Thread(target=instance.serve, daemon=True)
     thread.start()
-    deadline = time.time() + 5
-    while client.ping(home) is None and time.time() < deadline:
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        state = client.ping(home)
+        if state is not None and state["model_state"] == "ready":
+            break
         time.sleep(0.02)
     yield instance
     instance.stop()

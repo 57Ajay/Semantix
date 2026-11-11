@@ -24,6 +24,9 @@ from .model import Embedder, local_snapshot, resolve_device, resolve_dtype
 from .paths import Paths
 
 AGREEMENT_FLOOR = 0.99
+STAGES = ("text", "query", "image", "video", "audio")
+E2E_VIDEO_SECONDS = 34
+AUDIO_TOKENS_PER_SECOND = 24
 REQUIRED_FILES = 3
 STDLIB_FILES = (
     "json/decoder.py", "heapq.py", "textwrap.py", "bisect.py", "shlex.py", "fnmatch.py", "colorsys.py",
@@ -213,47 +216,102 @@ def peak_memory(embedder: Embedder) -> dict[str, float]:
     return result
 
 
+def describe(error: Exception) -> str:
+    return f"{type(error).__name__}: {error}"[:600]
+
+
+def check_limits(embedder: Embedder) -> dict[str, Any]:
+    from PIL import Image
+
+    from .config import OPTIONS
+    from .model import CONTEXT_TOKENS, MAX_AUDIO_SECONDS, max_video_frames, video_segment_seconds
+
+    result: dict[str, Any] = {"context_tokens": CONTEXT_TOKENS, "video": [], "audio": []}
+    if "audio" in embedder.capabilities:
+        for seconds in (30, 60, MAX_AUDIO_SECONDS):
+            entry: dict[str, Any] = {"seconds": seconds}
+            try:
+                entry["tokens"] = embedder.audio_token_count(tone(seconds))
+                entry["fits"] = entry["tokens"] <= CONTEXT_TOKENS
+                entry["complete"] = entry["tokens"] >= seconds * AUDIO_TOKENS_PER_SECOND
+            except Exception as error:
+                entry["fits"] = entry["complete"] = False
+                entry["error"] = describe(error)
+            result["audio"].append(entry)
+    if "video" not in embedder.capabilities:
+        result["ok"] = all(entry["fits"] and entry["complete"] for entry in result["audio"])
+        return result
+    original = embedder.config
+    try:
+        for tokens in OPTIONS["video.frame_tokens"].choices:
+            config = Config({**original.flat(), "video.frame_tokens": tokens})
+            embedder.config = config
+            config.set("video.segment_seconds", 3600)
+            fps = config.get("video.fps")
+            frames = max(round(video_segment_seconds(config) * fps), 1)
+            entry: dict[str, Any] = {"frame_tokens": tokens, "frames": frames, "limit_frames": max_video_frames(tokens)}
+            try:
+                image = Image.new("RGB", (512, 512), "gray")
+                entry["tokens"] = embedder.video_token_count([image] * frames, fps)
+                entry["fits"] = entry["tokens"] <= CONTEXT_TOKENS
+                entry["complete"] = entry["tokens"] >= frames * tokens * 0.8
+            except Exception as error:
+                entry["fits"] = entry["complete"] = False
+                entry["error"] = describe(error)
+            result["video"].append(entry)
+    finally:
+        embedder.config = original
+    result["ok"] = all(entry["fits"] and entry["complete"] for entry in [*result["video"], *result["audio"]])
+    return result
+
+
 def measure(embedder: Embedder, sizes: dict[str, int], chunks: list[str], say: Callable[[str], None]) -> dict[str, Any]:
     if embedder.device == "cuda":
         import torch
 
         torch.cuda.reset_peak_memory_stats()
     result: dict[str, Any] = {"text_batch": embedder.text_batch_size(), "media_batch": embedder.media_batch_size()}
-    embedder.embed_documents(chunks[:2])
-    embedder.embed_query("warm up")
 
-    say("text")
-    batch = chunks[: sizes["chunks"]]
-    started = time.perf_counter()
-    embedder.embed_documents(batch)
-    elapsed = time.perf_counter() - started
-    characters = sum(len(text) for text in batch)
-    result["text"] = {
-        "parts": len(batch), "characters": characters, "seconds": round(elapsed, 3),
-        "characters_per_second": round(characters / elapsed), "parts_per_second": round(len(batch) / elapsed, 2),
-    }
+    def stage(name: str, work: Callable[[], dict[str, Any]]) -> None:
+        say(name)
+        try:
+            result[name] = work()
+        except Exception as error:
+            result[name] = {"error": describe(error)}
 
-    timings = []
-    for index in range(sizes["queries"]):
+    def text() -> dict[str, Any]:
+        embedder.embed_documents(chunks[:2])
+        batch = chunks[: sizes["chunks"]]
         started = time.perf_counter()
-        embedder.embed_query(f"where is the retry logic for request number {index}")
-        timings.append(time.perf_counter() - started)
-    result["query"] = {"runs": len(timings), "median_ms": round(statistics.median(timings) * 1000, 1)}
+        embedder.embed_documents(batch)
+        elapsed = time.perf_counter() - started
+        characters = sum(len(item) for item in batch)
+        return {
+            "parts": len(batch), "characters": characters, "seconds": round(elapsed, 3),
+            "characters_per_second": round(characters / elapsed), "parts_per_second": round(len(batch) / elapsed, 2),
+        }
 
-    if "image" in embedder.capabilities:
-        say("images")
+    def query() -> dict[str, Any]:
+        embedder.embed_query("warm up")
+        timings = []
+        for index in range(sizes["queries"]):
+            started = time.perf_counter()
+            embedder.embed_query(f"where is the retry logic for request number {index}")
+            timings.append(time.perf_counter() - started)
+        return {"runs": len(timings), "median_ms": round(statistics.median(timings) * 1000, 1)}
+
+    def image() -> dict[str, Any]:
         images = noise_images(sizes["images"])
         embedder.embed_images(images[:1])
         started = time.perf_counter()
         embedder.embed_images(images)
         elapsed = time.perf_counter() - started
-        result["image"] = {
+        return {
             "images": len(images), "tokens": embedder.config.get("image.tokens"), "seconds": round(elapsed, 3),
             "images_per_second": round(len(images) / elapsed, 2), "seconds_per_image": round(elapsed / len(images), 3),
         }
 
-    if "video" in embedder.capabilities:
-        say("video")
+    def video() -> dict[str, Any]:
         frames = moving_frames(sizes["frames"])
         embedder.embed_video(frames[:2], 1.0)
         started = time.perf_counter()
@@ -261,14 +319,13 @@ def measure(embedder: Embedder, sizes: dict[str, int], chunks: list[str], say: C
             embedder.embed_video(frames, 1.0)
         elapsed = time.perf_counter() - started
         total = sizes["segments"] * len(frames)
-        result["video"] = {
+        return {
             "segments": sizes["segments"], "frames_per_segment": len(frames),
             "tokens": embedder.config.get("video.frame_tokens"), "seconds": round(elapsed, 3),
             "frames_per_second": round(total / elapsed, 2), "seconds_per_segment": round(elapsed / sizes["segments"], 3),
         }
 
-    if "audio" in embedder.capabilities:
-        say("audio")
+    def audio() -> dict[str, Any]:
         samples = tone(30)
         embedder.embed_audio(samples[: AUDIO_RATE * 2])
         started = time.perf_counter()
@@ -276,14 +333,19 @@ def measure(embedder: Embedder, sizes: dict[str, int], chunks: list[str], say: C
             embedder.embed_audio(samples)
         elapsed = time.perf_counter() - started
         seconds = 30 * sizes["audio"]
-        result["audio"] = {
-            "audio_seconds": seconds, "seconds": round(elapsed, 3), "times_realtime": round(seconds / elapsed, 1),
-        }
+        return {"audio_seconds": seconds, "seconds": round(elapsed, 3), "times_realtime": round(seconds / elapsed, 1)}
+
+    stage("text", text)
+    stage("query", query)
+    for name, work in (("image", image), ("video", video), ("audio", audio)):
+        if name in embedder.capabilities:
+            stage(name, work)
     result["memory"] = peak_memory(embedder)
+    result["stage_errors"] = sorted(name for name in STAGES if "error" in result.get(name, {}))
     return result
 
 
-def write_video(path: Path, seconds: int = 12) -> None:
+def write_video(path: Path, seconds: int = E2E_VIDEO_SECONDS) -> None:
     import av
 
     with av.open(str(path), "w") as container:
@@ -372,6 +434,7 @@ def end_to_end(config: Config, models_dir: Path, sources: list[tuple[str, str]],
                 "top3": sum(check["rank"] is not None for check in checks),
                 "queries": len(checks),
                 "memory": peak_memory(embedder),
+                "errors": engine.store.error_files(),
             }
         finally:
             engine.close()
@@ -397,18 +460,23 @@ def run(
     models_dir: Path,
     device_preference: str = "auto",
     dtypes: list[str] | None = None,
-    quick: bool = False,
+    workload: str = "auto",
+    overrides: dict[str, Any] | None = None,
     say: Callable[[str], None] = lambda message: None,
 ) -> dict[str, Any]:
     device = resolve_device(device_preference)
-    sizes = SIZES["small" if quick or device == "cpu" else "large"]
+    if workload == "auto":
+        workload = "small" if device == "cpu" else "large"
+    sizes = SIZES[workload]
+    overrides = {key: value for key, value in (overrides or {}).items() if value}
     report: dict[str, Any] = {
         "when": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "environment": environment(device),
-        "sizes": "small" if quick or device == "cpu" else "large",
+        "sizes": workload,
+        "overrides": overrides,
         "command": " ".join(sys.argv[1:]),
     }
-    base = Config({"model.device": device})
+    base = Config({"model.device": device, **overrides})
     if local_snapshot(base.get("model.id"), models_dir) is None:
         raise RuntimeError("the model is not downloaded")
     sources = stdlib_sources(sizes["chars"])
@@ -432,7 +500,7 @@ def run(
     for dtype in candidate_dtypes(device, dtypes):
         entry: dict[str, Any] = {}
         report["dtypes"][dtype] = entry
-        config = Config({"model.device": device, "model.dtype": dtype})
+        config = Config({"model.device": device, "model.dtype": dtype, **overrides})
         embedder = Embedder(config, models_dir)
         try:
             say(f"{dtype}: loading")
@@ -444,14 +512,19 @@ def run(
                 reference = vectors
             entry["agreement_with_cpu_float32"] = agreement(vectors, reference)
             entry["agrees"] = all(value >= AGREEMENT_FLOOR for value in entry["agreement_with_cpu_float32"].values())
+            if "limits" not in report:
+                say("checking input limits")
+                report["limits"] = check_limits(embedder)
             entry.update(measure(embedder, sizes, chunks, lambda stage, dtype=dtype: say(f"{dtype}: {stage}")))
         except Exception as error:
-            entry["error"] = f"{type(error).__name__}: {error}"[:600]
+            entry["error"] = describe(error)
         finally:
             embedder.unload()
 
     usable = {
-        name: entry for name, entry in report["dtypes"].items() if "error" not in entry and entry.get("agrees")
+        name: entry
+        for name, entry in report["dtypes"].items()
+        if "error" not in entry and entry.get("agrees") and "error" not in entry.get("text", {"error": True})
     }
     report["default_dtype"] = str(resolve_dtype(device, "auto")).replace("torch.", "")
     if usable:
@@ -461,10 +534,17 @@ def run(
         try:
             say(f"end to end with {chosen}")
             report["end_to_end"] = end_to_end(
-                Config({"model.device": device, "model.dtype": chosen}), models_dir, sources, say
+                Config({"model.device": device, "model.dtype": chosen, **overrides}), models_dir, sources, say
             )
             report["end_to_end"]["dtype"] = chosen
         except Exception as error:
-            report["end_to_end"] = {"error": f"{type(error).__name__}: {error}"[:600]}
-    report["ok"] = bool(usable) and "error" not in report.get("end_to_end", {"error": True})
+            report["end_to_end"] = {"error": describe(error)}
+    run_result = report.get("end_to_end", {"error": True})
+    report["ok"] = (
+        bool(usable)
+        and "error" not in run_result
+        and run_result.get("failed") == 0
+        and report.get("limits", {}).get("ok", True)
+        and not any(entry.get("stage_errors") or "error" in entry for entry in report["dtypes"].values())
+    )
     return report

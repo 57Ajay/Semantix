@@ -18,7 +18,7 @@ from .chunking import NotTextError, chunk_text, document_prompt, read_text
 from .config import Config
 from .filetypes import KIND_CAPABILITY, KINDS, TEXT_KINDS, classify, extension_of
 from .ignore import IgnoreRules
-from .model import Embedder
+from .model import Embedder, audio_segment_seconds, max_video_frames, video_segment_seconds
 from .paths import Paths
 from .scanner import Candidate, Scanner, ScanResult, file_hash, normalize_selection
 from .store import (
@@ -138,6 +138,17 @@ class Run:
             "eta": round(eta, 1),
             "elapsed": round(elapsed, 1),
         }
+
+
+def split_segments(segments: Iterator[tuple[float, float, list]], limit: int) -> Iterator[tuple[float, float, list]]:
+    for begin, end, frames in segments:
+        if len(frames) <= limit:
+            yield begin, end, frames
+            continue
+        span = (end - begin) / len(frames)
+        for start in range(0, len(frames), limit):
+            group = frames[start : start + limit]
+            yield begin + start * span, begin + (start + len(group)) * span, group
 
 
 def _escape_pattern(relative: str) -> str:
@@ -833,7 +844,8 @@ class Engine:
                     raise EngineError("no video stream found")
                 fps = self.config.get("video.fps")
                 tokens = self.config.get("video.frame_tokens")
-                for begin, end, frames in media.iter_video_segments(item.path, fps, self.config.get("video.segment_seconds")):
+                segments = media.iter_video_segments(item.path, fps, video_segment_seconds(self.config))
+                for begin, end, frames in split_segments(segments, max_video_frames(tokens)):
                     if run.cancel.is_set():
                         return
                     began = time.time()
@@ -843,8 +855,7 @@ class Engine:
                     fraction = min(end / duration, 1.0) if duration else 0.0
                     yield run.progress(item.path, item.cost * video_share * fraction)
             if with_audio:
-                seconds = self.config.get("audio.segment_seconds")
-                for begin, end, samples in media.iter_audio_segments(item.path, seconds):
+                for begin, end, samples in media.iter_audio_segments(item.path, audio_segment_seconds(self.config)):
                     if run.cancel.is_set():
                         return
                     began = time.time()
@@ -870,12 +881,14 @@ class Engine:
         if kind == "image":
             return self.embedder.embed_images([media.load_image(path)])[0], kind
         if kind == "audio":
-            for _begin, _end, samples in media.iter_audio_segments(path, self.config.get("audio.segment_seconds")):
+            for _begin, _end, samples in media.iter_audio_segments(path, audio_segment_seconds(self.config)):
                 return self.embedder.embed_audio(samples), kind
             raise EngineError(f"{path} has no audible content")
         if kind == "video":
             fps = self.config.get("video.fps")
-            for _begin, _end, frames in media.iter_video_segments(path, fps, self.config.get("video.segment_seconds")):
+            segments = media.iter_video_segments(path, fps, video_segment_seconds(self.config))
+            limit = max_video_frames(self.config.get("video.frame_tokens"))
+            for _begin, _end, frames in split_segments(segments, limit):
                 return self.embedder.embed_video(frames, fps), kind
             raise EngineError(f"{path} has no video frames")
         chunks = chunk_text(read_text(path), self.config.get("index.chunk_chars"))

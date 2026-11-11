@@ -17,7 +17,24 @@ from .media import AUDIO_RATE
 log = logging.getLogger("semantix.model")
 
 QUERY_PROMPTS = {"search": "SearchQuery", "code": "CodeRetrieval"}
-MAX_TEXT_TOKENS = 2048
+CONTEXT_TOKENS = 8192
+FRAME_OVERHEAD_TOKENS = 4
+SEQUENCE_OVERHEAD_TOKENS = 64
+MAX_AUDIO_SECONDS = 300
+
+
+def max_video_frames(frame_tokens: int) -> int:
+    return max((CONTEXT_TOKENS - SEQUENCE_OVERHEAD_TOKENS) // (frame_tokens + FRAME_OVERHEAD_TOKENS), 1)
+
+
+def video_segment_seconds(config: Config) -> float:
+    fps = config.get("video.fps")
+    longest = max_video_frames(config.get("video.frame_tokens")) / fps
+    return max(min(float(config.get("video.segment_seconds")), longest), 1.0 / fps)
+
+
+def audio_segment_seconds(config: Config) -> float:
+    return float(min(config.get("audio.segment_seconds"), MAX_AUDIO_SECONDS))
 
 
 class ModelError(RuntimeError):
@@ -142,7 +159,7 @@ class Embedder:
                 local_files_only=True,
                 model_kwargs={"torch_dtype": dtype},
                 config_kwargs=config_kwargs,
-                processor_kwargs={"model_max_length": MAX_TEXT_TOKENS},
+                processor_kwargs={"model_max_length": CONTEXT_TOKENS},
             )
             self._model.eval()
             self.device = device
@@ -194,6 +211,9 @@ class Embedder:
         return {"cuda": 32, "mps": 16}.get(self.device or "cpu", 4)
 
     def media_batch_size(self) -> int:
+        configured = self.config.get("model.media_batch_size")
+        if configured:
+            return configured
         return {"cuda": 8, "mps": 4}.get(self.device or "cpu", 1)
 
     def _encode(self, inputs: list, batch_size: int, **kwargs) -> np.ndarray:
@@ -257,19 +277,53 @@ class Embedder:
     def embed_video(self, frames: list, fps: float) -> np.ndarray:
         self.require("video")
         count = len(frames)
+        tokens = self.config.get("video.frame_tokens")
+        if count > max_video_frames(tokens):
+            raise ModelError(f"{count} frames do not fit in one segment, the limit is {max_video_frames(tokens)}")
         metadata = {
             "fps": fps,
             "total_num_frames": count,
             "duration": count / fps,
             "frames_indices": list(range(count)),
         }
-        tokens = self.config.get("video.frame_tokens")
         return self._encode(
             [{"video": {"array": frames, "video_metadata": metadata}}],
             1,
             processing_kwargs={"video": {"do_sample_frames": False, "max_soft_tokens": tokens}},
         )[0]
 
+    def video_token_count(self, frames: list, fps: float) -> int:
+        self.require("video")
+        with self._lock:
+            self.load()
+            count = len(frames)
+            metadata = {
+                "fps": fps, "total_num_frames": count, "duration": count / fps, "frames_indices": list(range(count)),
+            }
+            features = self._model.preprocess(
+                [{"video": {"array": frames, "video_metadata": metadata}}],
+                processing_kwargs={
+                    "video": {"do_sample_frames": False, "max_soft_tokens": self.config.get("video.frame_tokens")}
+                },
+            )
+            return int(features["input_ids"].shape[1])
+
     def embed_audio(self, samples: np.ndarray) -> np.ndarray:
         self.require("audio")
-        return self._encode([{"audio": {"array": samples, "sampling_rate": AUDIO_RATE}}], 1)[0]
+        if len(samples) > MAX_AUDIO_SECONDS * AUDIO_RATE:
+            raise ModelError(f"audio segments longer than {MAX_AUDIO_SECONDS} seconds do not fit")
+        return self._encode(
+            [{"audio": {"array": samples, "sampling_rate": AUDIO_RATE}}],
+            1,
+            processing_kwargs={"audio": {"truncation": False}},
+        )[0]
+
+    def audio_token_count(self, samples: np.ndarray) -> int:
+        self.require("audio")
+        with self._lock:
+            self.load()
+            features = self._model.preprocess(
+                [{"audio": {"array": samples, "sampling_rate": AUDIO_RATE}}],
+                processing_kwargs={"audio": {"truncation": False}},
+            )
+            return int(features["input_ids"].shape[1])

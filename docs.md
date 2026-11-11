@@ -185,7 +185,9 @@ Measures embedding speed on this machine and checks the results. See
 | --- | --- |
 | `--device cuda\|mps\|cpu` | Test a specific device instead of the automatic choice |
 | `--dtype float32,bfloat16` | Number formats to test |
-| `--quick` | Use the small workload even on a GPU |
+| `--workload small\|large` | Force a workload size; the default is small on a CPU, large on a GPU |
+| `--quick` | Same as `--workload small` |
+| `--text-batch N`, `--image-batch N` | Batch sizes to test instead of the device defaults |
 | `--output FILE`, `-o` | Where to write the JSON report |
 
 ### `semantix config`
@@ -239,6 +241,11 @@ A video is sampled at `video.fps` frames per second (default 1) and cut into seg
 time. If audio is enabled and the video has a soundtrack, the soundtrack is embedded too, as
 separate parts with the same timestamps, so a query can match what is said as well as what is
 shown. Results from the soundtrack are labelled `soundtrack`.
+
+The model reads at most 8,192 tokens at once, and every frame costs `video.frame_tokens` of
+them. A segment is therefore limited to 109 frames at 70 tokens, 56 at 140 and 28 at 280. If
+your segment length and frame rate ask for more, the segment is shortened to fit, so at 280
+tokens and 1 frame per second a segment is 28 seconds, not 30.
 
 ### Audio
 
@@ -407,6 +414,7 @@ Settings live in `~/.semantix/config.toml`. Change them with `semantix config se
 | `model.device` | `auto` | `auto`, `cuda`, `mps` or `cpu` |
 | `model.dtype` | `auto` | `auto`, `float32` or `bfloat16` |
 | `model.batch_size` | `0` | Text batch size; 0 picks 32 on CUDA, 16 on Metal, 4 on CPU |
+| `model.media_batch_size` | `0` | Image batch size; 0 picks 8 on CUDA, 4 on Metal, 1 on CPU |
 | `daemon.auto_start` | `true` | Start the service when a command needs it |
 | `daemon.idle_unload_minutes` | `0` | Unload the model after this many idle minutes; 0 never |
 | `index.chunk_chars` | `1600` | Target size of a text part |
@@ -418,10 +426,10 @@ Settings live in `~/.semantix/config.toml`. Change them with `semantix config se
 | `limits.audio_mb` | `100` | Same for audio |
 | `image.tokens` | `280` | Detail per image: 70, 140, 280, 560 or 1120 |
 | `video.fps` | `1.0` | Frames sampled per second |
-| `video.segment_seconds` | `30` | Segment length |
+| `video.segment_seconds` | `30` | Segment length; shortened automatically if it would not fit the model |
 | `video.frame_tokens` | `140` | Detail per frame: 70, 140 or 280 |
 | `video.audio_track` | `true` | Also embed the soundtrack |
-| `audio.segment_seconds` | `30` | Segment length |
+| `audio.segment_seconds` | `30` | Segment length, at most 300 |
 | `search.limit` | `10` | Default number of results |
 | `search.mode` | `hybrid` | Default mode |
 | `search.per_file` | `2` | Maximum results from one file |
@@ -530,12 +538,13 @@ Measured on a 4-core x86 CPU with no GPU, in float32:
 | Text only | About 2.1 GB |
 | Everything | About 4 GB |
 
-A GPU should be much faster, but has not been measured yet; see the results table below.
+A GPU should be much faster, but its speed has not been measured yet; see the results table
+below.
 
-On this CPU, which has the AVX512-BF16 and AMX instructions, bfloat16 was two to three times
-faster than float32 and used about a third less memory, with practically identical results.
-CPUs without those instructions are expected to be slower in bfloat16, which is why float32
-stays the default. `semantix benchmark` tells you which is faster on yours.
+bfloat16 uses about a third less memory on a CPU, but its speed depends on the processor: it
+was twice as fast as float32 on a CPU with the AVX512-BF16 instructions and three times slower
+on one without. float32 stays the CPU default. `semantix benchmark` tells you which is faster
+on yours; the [results](#results) table has both cases.
 
 While a sync is embedding, a search waits for the batch in progress. On a CPU a single video
 segment can hold a search up for a while.
@@ -546,21 +555,24 @@ segment can hold a search up for a while.
 semantix benchmark
 ```
 
-The benchmark does three things and writes a JSON report next to where you ran it
+The benchmark does four things and writes a JSON report next to where you ran it
 (`semantix-benchmark-<device>.json`).
 
-1. **Correctness.** A fixed set of text, image, video and audio inputs is embedded on the
+1. **Limits.** The longest video segment allowed at each detail level, and audio segments of
+   30, 60 and 300 seconds, are run through the model's input processing to confirm that they
+   fit and that nothing is cut off.
+2. **Correctness.** A fixed set of text, image, video and audio inputs is embedded on the
    device in each number format and compared with the same inputs embedded on the CPU in
    float32. Each comparison must reach a cosine similarity of 0.99. This is what catches a
    GPU or number format that silently produces wrong vectors.
-2. **Speed.** Text, single queries, images, video and audio are timed separately, with peak
-   memory.
-3. **A real sync and search.** A generated directory of Python source files, pictures, a video
-   and an audio file is synced through the same engine the service uses, then searched with
+3. **Speed.** Text, single queries, images, video and audio are timed separately, with peak
+   memory. A failure in one does not hide the results of the others.
+4. **A real sync and search.** A generated directory of Python source files, pictures, a
+   34-second video and an audio file is synced through the same engine the service uses, then searched with
    queries whose correct answer is known.
 
-It uses a temporary index, so your own index is not touched. It takes about two and a half
-minutes on a 4-core CPU. On a GPU it runs a larger workload.
+It uses a temporary index, so your own index is not touched. It takes three to four minutes
+on a 4-core CPU. On a GPU it runs a larger workload.
 
 If a number format other than the default turns out faster and correct, the benchmark prints
 the command to switch to it.
@@ -590,12 +602,37 @@ environment.
 
 ### Results
 
-| Machine | Format | Text | One query | Image (280 tokens) | Video (140 tokens) | Audio | Peak memory |
+All rows use the default detail settings: 280 tokens per image, 140 per video frame.
+
+| Machine | Format | Text | One query | Image | Video | Audio | Peak memory |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Intel Xeon with AVX512-BF16, 4 threads | float32 | 3,200 chars/s | 107 ms | 3.8 s each | 0.6 frames/s | 12x realtime | 4.1 GB |
-| Intel Xeon with AVX512-BF16, 4 threads | bfloat16 | 6,700 chars/s | 73 ms | 1.3 s each | 1.9 frames/s | 26x realtime | 2.8 GB |
-| NVIDIA T4 (Colab) | | not measured yet | | | | | |
+| Intel Xeon 3.1 GHz, 8 vCPU, 4 threads used | float32 | 3,600 chars/s | 115 ms | 3.3 s each | 0.7 frames/s | 14x realtime | 4.1 GB |
+| Intel Xeon 3.1 GHz, 8 vCPU, 4 threads used | bfloat16 | 1,200 chars/s | 184 ms | 8.5 s each | 0.2 frames/s | 5x realtime | 2.6 GB |
+| Intel Xeon 2.1 GHz with AVX512-BF16, 4 threads | float32 | 3,200 chars/s | 107 ms | 3.8 s each | 0.6 frames/s | 12x realtime | 4.1 GB |
+| Intel Xeon 2.1 GHz with AVX512-BF16, 4 threads | bfloat16 | 6,700 chars/s | 73 ms | 1.3 s each | 1.9 frames/s | 26x realtime | 2.8 GB |
+| NVIDIA T4 (Colab) | both | speed not measured yet | | | | | |
 | Apple Silicon | | not measured yet | | | | | |
+
+What these show so far:
+
+- **bfloat16 on a CPU depends on the processor.** It was twice as fast on a CPU with the
+  AVX512-BF16 instructions and three times slower on one without. float32 stays the CPU
+  default; switch only if the benchmark on your machine says so.
+- **The T4 produces correct vectors in both formats.** On a Tesla T4 with PyTorch 2.15 built
+  for CUDA 13.2, text, query, image, video and audio embeddings matched the CPU reference with
+  a cosine similarity of 0.9997 or better in bfloat16 and in float32. That run stopped at the
+  video timing because of a bug that has since been fixed (see below), so there are no speed
+  numbers for it yet.
+
+### A bug this benchmark found
+
+Until it was fixed, the model's input was capped at 2,048 tokens. Text never reaches that, but
+a video segment does: 30 frames at 140 tokens need about 3,700. Any video segment longer than
+about 16 frames failed, on every device. The cap is now the model's real limit of 8,192
+tokens, segments are sized so they cannot exceed it, and the benchmark checks the longest
+allowed video and audio segments on every run. The same review found that audio segments
+longer than 30 seconds were being cut to 30 by the audio processor; that is fixed too. The
+default 30-second audio segments were never affected.
 
 ## Architecture
 
@@ -639,10 +676,10 @@ The tests use a small fake embedder, so they run in about a second and do not ne
 
 ## Limits and untested areas
 
-- **CUDA and Apple Metal have not been run.** Development and testing happened on a CPU-only
-  Linux machine. Device selection, bfloat16 on CUDA and the Metal fallback are implemented but
-  unverified. bfloat16 itself was verified on the CPU for every modality. Run
-  `semantix benchmark` on a GPU to check that machine.
+- **CUDA is partly verified, Apple Metal not at all.** On a Tesla T4, loading in bfloat16 and
+  float32 and the correctness comparison against the CPU passed for every modality. Timings,
+  larger batches on a real GPU and a full sync have not completed there yet. Apple Metal has
+  never been run. Run `semantix benchmark` on a GPU to check that machine.
 - **Autostart has not been exercised end to end.** The systemd unit and launchd plist are
   generated and checked by tests, but enabling them was not possible in the development
   environment. macOS as a whole is untested.

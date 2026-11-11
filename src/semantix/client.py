@@ -114,6 +114,9 @@ def stop(paths: Paths, wait: float = 15.0) -> bool:
     deadline = time.time() + wait
     while time.time() < deadline:
         if ping(paths) is None:
+            settle = time.time() + 5.0
+            while paths.socket.exists() and time.time() < settle:
+                time.sleep(0.05)
             return True
         time.sleep(0.1)
     try:

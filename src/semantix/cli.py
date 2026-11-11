@@ -938,21 +938,26 @@ def render_benchmark(report: dict[str, Any]) -> None:
             return "[red]failed[/]" if key == "load" else ""
         if key == "load":
             return f"{entry['load_seconds']}s"
-        if key == "text":
-            return f"{entry['text']['characters_per_second']:,} chars/s"
-        if key == "query":
-            return f"{entry['query']['median_ms']} ms"
-        if key == "image":
-            return f"{entry['image']['seconds_per_image']}s each" if "image" in entry else "–"
-        if key == "video":
-            return f"{entry['video']['frames_per_second']} frames/s" if "video" in entry else "–"
-        if key == "audio":
-            return f"{entry['audio']['times_realtime']}x realtime" if "audio" in entry else "–"
         if key == "memory":
             memory = entry["memory"]
             return f"{memory['gpu_peak_mb']} MB GPU" if "gpu_peak_mb" in memory else f"{memory.get('process_rss_mb', '?')} MB"
-        lowest = min(entry["agreement_with_cpu_float32"].values())
-        return f"[green]{lowest:.4f}[/]" if entry["agrees"] else f"[red]{lowest:.4f} differs[/]"
+        if key == "agreement":
+            lowest = min(entry["agreement_with_cpu_float32"].values())
+            return f"[green]{lowest:.4f}[/]" if entry["agrees"] else f"[red]{lowest:.4f} differs[/]"
+        stage = entry.get(key)
+        if stage is None:
+            return "–"
+        if "error" in stage:
+            return "[red]failed[/]"
+        if key == "text":
+            return f"{stage['characters_per_second']:,} chars/s"
+        if key == "query":
+            return f"{stage['median_ms']} ms"
+        if key == "image":
+            return f"{stage['seconds_per_image']}s each"
+        if key == "video":
+            return f"{stage['frames_per_second']} frames/s"
+        return f"{stage['times_realtime']}x realtime"
 
     labels = (
         ("load", "Model load"), ("text", "Text"), ("query", "One query"), ("image", "Image"), ("video", "Video"),
@@ -962,8 +967,27 @@ def render_benchmark(report: dict[str, Any]) -> None:
         table.add_row(label, *(cell(report["dtypes"][name], key) for name in names))
     console.print(table)
     for name in names:
-        if "error" in report["dtypes"][name]:
-            console.print(f"[red]{name} failed:[/] {report['dtypes'][name]['error']}")
+        entry = report["dtypes"][name]
+        if "error" in entry:
+            console.print(f"[red]{name} failed:[/] {entry['error']}")
+        for stage in entry.get("stage_errors", []):
+            console.print(f"[red]{name} {stage} failed:[/] {entry[stage]['error']}")
+    limits = report.get("limits")
+    if limits and not limits.get("ok", True):
+        for entry in limits["video"]:
+            if not entry["fits"]:
+                console.print(
+                    f"[red]A full video segment does not fit the model at {entry['frame_tokens']} tokens per frame:[/] "
+                    f"{entry.get('error') or entry.get('tokens')}"
+                )
+            elif not entry["complete"]:
+                console.print(f"[red]Video frames are being dropped at {entry['frame_tokens']} tokens per frame[/]")
+        for entry in limits.get("audio", []):
+            if not (entry["fits"] and entry["complete"]):
+                console.print(
+                    f"[red]A {entry['seconds']} second audio segment is not embedded in full:[/] "
+                    f"{entry.get('error') or entry.get('tokens')} tokens"
+                )
     run = report.get("end_to_end")
     if run and "error" not in run:
         console.print(
@@ -975,6 +999,8 @@ def render_benchmark(report: dict[str, Any]) -> None:
             f"Search: {run['search_median_ms']} ms median, expected file ranked first for "
             f"{run['top1']} of {run['queries']} queries (in the top 3 for {run['top3']})"
         )
+        for entry in run.get("errors", []):
+            console.print(f"  [red]failed:[/] {os.path.basename(entry['path'])}  {entry['error']}")
         for entry in run["checks"]:
             if entry["rank"] != 1:
                 console.print(f"  [yellow]{entry['query']!r}[/] expected {entry['expected']}, got {', '.join(entry['top'])}")
@@ -993,6 +1019,9 @@ def benchmark(
     device: Annotated[str, typer.Option(help="auto, cuda, mps or cpu")] = "auto",
     dtype: Annotated[list[str] | None, typer.Option(help="Number formats to test: float32, bfloat16")] = None,
     quick: Annotated[bool, typer.Option("--quick", help="Use the small workload even on a GPU")] = False,
+    workload: Annotated[str, typer.Option(help="auto, small or large")] = "auto",
+    text_batch: Annotated[int, typer.Option("--text-batch", help="Text batch size to test, 0 for the device default")] = 0,
+    image_batch: Annotated[int, typer.Option("--image-batch", help="Image batch size to test, 0 for the device default")] = 0,
     output: Annotated[Path | None, typer.Option("--output", "-o", help="Where to write the JSON report")] = None,
 ) -> None:
     """Measure embedding speed on this machine and check the results are correct."""
@@ -1002,6 +1031,8 @@ def benchmark(
     for name in formats or []:
         if name not in ("float32", "bfloat16"):
             raise fail("--dtype must be float32 or bfloat16")
+    if workload not in ("auto", "small", "large"):
+        raise fail("--workload must be auto, small or large")
     if not model_present(paths, config):
         console.print(f"Downloading [bold]{config.get('model.id')}[/] (about 1.5 GB)…")
         from .model import download
@@ -1018,7 +1049,12 @@ def benchmark(
     try:
         with console.status("Benchmark: starting…") as status:
             report = benchmark_module.run(
-                paths.models, device, formats, quick, say=lambda stage: status.update(f"Benchmark: {stage}…")
+                paths.models,
+                device,
+                formats,
+                "small" if quick else workload,
+                {"model.batch_size": text_batch, "model.media_batch_size": image_batch},
+                say=lambda stage: status.update(f"Benchmark: {stage}…"),
             )
     except (ModelError, RuntimeError) as error:
         raise fail(str(error)) from None

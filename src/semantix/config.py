@@ -18,6 +18,7 @@ class Option:
     help: str
     choices: tuple | None = None
     minimum: float | None = None
+    maximum: float | None = None
 
 
 OPTIONS: dict[str, Option] = {
@@ -29,6 +30,7 @@ OPTIONS: dict[str, Option] = {
     "model.device": Option("auto", "Compute device", ("auto", "cuda", "mps", "cpu")),
     "model.dtype": Option("auto", "Number format; auto uses bfloat16 on CUDA when supported", ("auto", "float32", "bfloat16")),
     "model.batch_size": Option(0, "Text batch size, 0 picks one for the device", minimum=0),
+    "model.media_batch_size": Option(0, "Image batch size, 0 picks one for the device", minimum=0),
     "daemon.auto_start": Option(True, "Start the background service on demand"),
     "daemon.idle_unload_minutes": Option(
         0, "Unload the model after this many idle minutes, 0 keeps it loaded", minimum=0
@@ -42,10 +44,10 @@ OPTIONS: dict[str, Option] = {
     "limits.audio_mb": Option(100, "Warn before embedding audio above this size", minimum=0),
     "image.tokens": Option(280, "Vision tokens per image", (70, 140, 280, 560, 1120)),
     "video.fps": Option(1.0, "Frames sampled per second of video", minimum=0.05),
-    "video.segment_seconds": Option(30, "Length of each video segment", minimum=2),
+    "video.segment_seconds": Option(30, "Length of each video segment, shortened if it would not fit the model", minimum=2),
     "video.frame_tokens": Option(140, "Vision tokens per video frame", (70, 140, 280)),
     "video.audio_track": Option(True, "Also embed the soundtrack of videos"),
-    "audio.segment_seconds": Option(30, "Length of each audio segment", minimum=2),
+    "audio.segment_seconds": Option(30, "Length of each audio segment, at most 300", minimum=2, maximum=300),
     "search.limit": Option(10, "Default number of results", minimum=1),
     "search.mode": Option("hybrid", "Default search mode", ("hybrid", "vector", "keyword")),
     "search.per_file": Option(2, "Maximum results from one file, 0 for no cap", minimum=0),
@@ -102,6 +104,8 @@ def _coerce(key: str, value: Any) -> Any:
         raise ConfigError(f"{key} must be one of {list(option.choices)}")
     if option.minimum is not None and not isinstance(value, bool) and value < option.minimum:
         raise ConfigError(f"{key} must be at least {option.minimum}")
+    if option.maximum is not None and not isinstance(value, bool) and value > option.maximum:
+        raise ConfigError(f"{key} must be at most {option.maximum}")
     return value
 
 
