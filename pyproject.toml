@@ -1,0 +1,60 @@
+[project]
+name = "semantix"
+version = "0.1.0"
+description = "Local semantic search over your code, notes, images, video and audio, powered by EmbeddingGemma 2."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "57Ajay", email = "57ajay.u@gmail.com" }]
+requires-python = ">=3.11"
+keywords = ["semantic-search", "embeddings", "vector-search", "cli", "multimodal"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "torch>=2.6",
+    "transformers>=5.18",
+    "sentence-transformers>=6.1.0",
+    "huggingface-hub>=1.0",
+    "numpy>=2.0",
+    "pillow>=11.0",
+    "av>=14.0",
+    "pathspec>=0.12",
+    "typer>=0.15",
+    "rich>=13.9",
+    "questionary>=2.1",
+    "tomli-w>=1.1",
+    "torchvision>=0.29.2",
+]
+
+[project.scripts]
+semantix = "semantix.cli:app"
+
+[project.urls]
+Repository = "https://github.com/57Ajay/Semantix"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/semantix"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
