@@ -1007,7 +1007,7 @@ def render_benchmark(report: dict[str, Any]) -> None:
     elif run:
         console.print(f"\n[red]Real sync failed:[/] {run['error']}")
     fastest = report.get("fastest_dtype")
-    if fastest and fastest != report["default_dtype"]:
+    if fastest and fastest != report["default_dtype"] and report["default_dtype"] in report["dtypes"]:
         console.print(
             f"\n{fastest} was faster than the default ({report['default_dtype']}) here. "
             f"To use it: [bold]semantix config set model.dtype {fastest}[/]"
