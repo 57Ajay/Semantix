@@ -484,6 +484,8 @@ def render_plan(plan: dict[str, Any]) -> None:
             extras.append(f"{root['deletes']} removed from disk")
         if root["moves"]:
             extras.append(f"{root['moves']} moved or renamed")
+        if root.get("failed"):
+            extras.append(f"{root['failed']} failed earlier and unchanged since (see `semantix status`)")
         extras.append(f"{root['unchanged']} unchanged")
         console.print(f"  [dim]{' · '.join(extras)}[/]")
     if plan["skipped"]:

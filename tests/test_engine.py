@@ -141,3 +141,77 @@ def test_missing_root_is_not_wiped(engine, project, tmp_path):
     os.rename(project, tmp_path / "elsewhere")
     plan = engine.plan()
     assert plan["totals"]["deletes"] == 0 and "not available" in plan["notes"][0]
+
+
+def test_failed_file_is_retried_only_after_it_changes(engine, project):
+    broken = project / "docs" / "broken.txt"
+    broken.write_bytes(b"\x00\x01\x02" * 50)
+    _plan, done = run_sync(engine, [str(project)])
+    assert done["failed"] == 1 and done["embedded"] == 4
+    plan = engine.plan()
+    assert plan["totals"]["files"] == 0 and plan["roots"][0]["failed"] == 1
+    assert engine.status()["errors"][0]["path"] == str(broken)
+    broken.write_text("now it is readable text about broken things\n")
+    plan, done = run_sync(engine)
+    assert plan["totals"]["files"] == 1 and done["embedded"] == 1 and done["failed"] == 0
+    assert engine.status()["errors"] == []
+
+
+def test_missing_target_is_reported(engine, project):
+    run_sync(engine, [str(project)])
+    plan = engine.plan([str(project / "nope"), "/definitely/not/here"])
+    assert len(plan["notes"]) == 2 and all("does not exist" in note for note in plan["notes"])
+    assert plan["roots"] == []
+
+
+def test_duplicate_media_reuses_vectors(engine, tmp_path, embedder, monkeypatch):
+    from PIL import Image
+
+    folder = tmp_path / "pics"
+    folder.mkdir()
+    Image.new("RGB", (40, 30), "red").save(folder / "one.png")
+    (folder / "two.png").write_bytes((folder / "one.png").read_bytes())
+    calls = []
+    original = embedder.embed_images
+    monkeypatch.setattr(embedder, "embed_images", lambda images: calls.append(len(images)) or original(images))
+    _plan, done = run_sync(engine, [str(folder)])
+    assert done["embedded"] == 2 and sum(calls) == 1
+    assert len(engine.search(like=str(folder / "one.png"))["hits"]) == 1
+
+
+def test_capability_off_keeps_existing_vectors(home, embedder, tmp_path):
+    from PIL import Image
+
+    from semantix.config import Config
+    from semantix.engine import Engine
+
+    folder = tmp_path / "mixed"
+    folder.mkdir()
+    Image.new("RGB", (20, 20), "blue").save(folder / "pic.png")
+    (folder / "note.md").write_text("a note\n")
+    first = Engine(home, Config(), embedder)
+    run_sync(first, [str(folder)])
+    first.close()
+    second = Engine(home, Config({"model.capabilities": "text"}), embedder)
+    plan = second.plan()
+    assert plan["totals"]["deletes"] == 0 and plan["off_kinds"] == {"image": 1}
+    assert len(second.index) == 2
+    second.close()
+
+
+def test_lower_dimension_truncates_and_higher_resets(home, embedder, project):
+    from semantix.config import Config
+    from semantix.engine import Engine
+
+    first = Engine(home, Config(), embedder)
+    run_sync(first, [str(project)])
+    first.close()
+    embedder.dimension = 256
+    smaller = Engine(home, Config({"model.dimension": 256}), embedder)
+    assert smaller.store.stored_dimension() == 256 and len(smaller.index) == 4
+    assert paths_of(smaller.search("update ecs service cluster"))[0] == "deploy.py"
+    smaller.close()
+    embedder.dimension = 768
+    bigger = Engine(home, Config(), embedder)
+    assert len(bigger.index) == 0 and bigger.store.root_summaries()[0]["waiting"] == 4
+    bigger.close()

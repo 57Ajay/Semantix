@@ -85,6 +85,7 @@ class PlanScope:
     update_selection: bool = False
     merge_ids: list[int] = field(default_factory=list)
     unchanged: int = 0
+    failed: int = 0
     inventory: dict[str, Any] | None = None
 
 
@@ -342,6 +343,10 @@ class Engine:
 
         scanner = self._scanner(scope.root, scope.selection)
         known = {row.path: row for row in self.store.files_under(target)}
+        if not exists and not known:
+            plan.notes.append(f"{target} does not exist.")
+            plan.scopes.remove(scope)
+            return
         pinned = {path for path, row in known.items() if row.pinned}
         pin_target = False
         if exists and os.path.isfile(target):
@@ -414,10 +419,13 @@ class Engine:
         if force:
             self._add_item(plan, scope, candidate, "changed", row.id, None, pin)
             return
+        same_stat = row.size == candidate.size and row.mtime_ns == candidate.mtime_ns
+        if row.status == STATUS_ERROR and same_stat:
+            scope.failed += 1
+            return
         if row.status in (STATUS_PENDING, STATUS_ERROR):
             self._add_item(plan, scope, candidate, "new" if row.status == STATUS_PENDING else "retry", row.id, None, pin)
             return
-        same_stat = row.size == candidate.size and row.mtime_ns == candidate.mtime_ns
         if same_stat and row.status == STATUS_INDEXED:
             scope.unchanged += 1
             return
@@ -476,6 +484,7 @@ class Engine:
                 "deletes": 0,
                 "moves": 0,
                 "unchanged": scope.unchanged,
+                "failed": scope.failed,
                 "inventory": scope.inventory,
             }
         for item in plan.items:
@@ -619,6 +628,7 @@ class Engine:
 
     def _fail(self, item: PlanItem, root_id: int, error: Exception | str, run: Run) -> dict[str, Any]:
         message = str(error) or type(error).__name__
+        message = message.replace(f": '{item.path}'", "").replace(f"'{item.path}'", "").strip()
         log.warning("could not embed %s: %s", item.path, message)
         self.store.upsert_file(
             root_id, item.path, item.kind, item.size, item.mtime_ns, item.hash, STATUS_ERROR,
@@ -766,28 +776,37 @@ class Engine:
             if run.cancel.is_set():
                 return
             loaded: list[tuple[PlanItem, Any]] = []
+            leaders: set[str] = set()
+            copies: dict[str, list[PlanItem]] = {}
             for item in items[start : start + size]:
                 reused = self._reuse_twin(item, root_ids[item.root], run)
                 if reused:
                     yield reused
                     yield run.progress(item.path)
                     continue
+                if item.hash in leaders:
+                    copies.setdefault(item.hash, []).append(item)
+                    continue
                 try:
                     loaded.append((item, media.load_image(item.path)))
                 except Exception as error:
                     yield self._fail(item, root_ids[item.root], error, run)
+                    continue
+                if item.hash:
+                    leaders.add(item.hash)
             if not loaded:
                 continue
             began = time.time()
             try:
                 vectors = self.embedder.embed_images([image for _item, image in loaded])
             except Exception as error:
-                for item, _image in loaded:
+                for item in [*(item for item, _image in loaded), *(copy for group in copies.values() for copy in group)]:
                     yield self._fail(item, root_ids[item.root], error, run)
                 continue
             run.measure("vision", tokens * len(loaded), time.time() - began)
             for (item, _image), vector in zip(loaded, vectors, strict=True):
-                yield self._commit(item, root_ids[item.root], [ChunkRecord("image", vector)], run)
+                for member in [item, *copies.get(item.hash or "", [])]:
+                    yield self._commit(member, root_ids[member.root], [ChunkRecord("image", vector)], run)
             yield run.progress(loaded[-1][0].path)
 
     def _run_media(self, item: PlanItem, root_ids: dict[str, int], run: Run) -> Iterator[dict[str, Any]]:
