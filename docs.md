@@ -47,7 +47,11 @@ and whether a GPU can be used.
 | --- | --- | --- |
 | Linux, no NVIDIA GPU | CPU-only build, 1.3 GB of libraries in total | Newest CUDA build, about 6 GB, runs on the CPU |
 | Linux, NVIDIA GPU | CUDA build matching the installed driver | Newest CUDA build, which needs a recent driver |
-| macOS | The standard build, which includes Apple Metal | The same |
+| macOS, Apple Silicon | The one macOS build, which includes Apple Metal | The same build |
+
+PyTorch publishes a single macOS build, for Apple Silicon on macOS 14 or newer. There is no
+separate CPU-only build for the Mac, so the flag makes no difference there. Intel Macs are not
+supported.
 
 uv marks `--torch-backend` as experimental. To choose by hand, pass a value such as `cpu` or
 `cu126` instead of `auto`, or set the `UV_TORCH_BACKEND` environment variable.

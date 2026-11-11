@@ -21,7 +21,7 @@ $ semantix search "a bee on a flower" --type video
 
 ## Requirements
 
-- Linux or macOS
+- Linux, or macOS 14 or newer on Apple Silicon (M-series)
 - Python 3.11 or newer and [uv](https://docs.astral.sh/uv/)
 - Disk: 1.5 GB for the model, plus 1.3 GB of libraries with CPU-only PyTorch or about 6 GB
   with the NVIDIA build
