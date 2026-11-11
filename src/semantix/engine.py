@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import logging
+import math
 import os
 import threading
 import time
@@ -27,6 +29,8 @@ from .store import (
     ChunkRecord,
     FileRow,
     Store,
+    query_terms,
+    tokenize,
 )
 from .vindex import VectorIndex
 
@@ -34,8 +38,19 @@ log = logging.getLogger("semantix.engine")
 
 MB = 1024 * 1024
 PLAN_TTL = 1800
-RRF_K = 60
-KEYWORD_WEIGHT = 0.5
+KEYWORD_BONUS = 0.08
+ANCHOR_QUERIES = (
+    "a photo of a mountain landscape", "how to cook rice", "function that sorts a list",
+    "meeting notes about the quarterly budget", "sound of heavy rain", "error handling in javascript",
+    "a person riding a bicycle", "database migration script", "recipe for chocolate cake",
+    "people talking in a meeting", "configuration file for a web server", "a dog playing in the park",
+    "unit tests for the parser", "music with guitar and drums", "travel itinerary for a trip",
+    "react component for a login form", "a diagram of system architecture", "shell script to back up files",
+    "birthday party video", "notes on machine learning", "a city street at night",
+    "sql query joining two tables", "a child laughing", "instructions to install a package",
+    "a chart showing sales", "docker compose file", "a bird singing", "email about a job offer",
+    "css styles for a button", "a football match", "kubernetes deployment manifest", "a bowl of fruit",
+)
 EXECUTION_ORDER = {"code": 0, "text": 0, "image": 1, "audio": 2, "video": 3}
 CPU_RATES = {"text": 3.3e-4, "vision": 0.0145, "audio": 0.1}
 DEVICE_SPEEDUP = {"cuda": 40.0, "mps": 8.0, "cpu": 1.0}
@@ -163,6 +178,30 @@ class Engine:
         self.index = VectorIndex(dimension)
         ids, files, kinds, vectors = self.store.load_vectors(dimension)
         self.index.add(ids, files, kinds, vectors)
+        self._load_anchors()
+
+    def _anchor_key(self) -> str:
+        digest = hashlib.blake2b("|".join(ANCHOR_QUERIES).encode(), digest_size=6).hexdigest()
+        return f"anchors:{self.config.get('model.id')}:{self.config.get('model.dimension')}:{digest}"
+
+    def _load_anchors(self) -> bool:
+        blob = self.store.get_blob(self._anchor_key())
+        if blob is None:
+            return False
+        dimension = self.config.get("model.dimension")
+        anchors = np.frombuffer(blob, dtype=np.float32).reshape(2, len(ANCHOR_QUERIES), dimension)
+        self.index.set_anchors(anchors[0], anchors[1])
+        return True
+
+    def ensure_anchors(self) -> None:
+        if self.index.calibrated or self._load_anchors():
+            return
+        embedded = [self.embedder.embed_query(text) for text in ANCHOR_QUERIES]
+        anchors = np.stack(
+            [np.stack([item["search"] for item in embedded]), np.stack([item["code"] for item in embedded])]
+        ).astype(np.float32)
+        self.store.set_blob(self._anchor_key(), anchors.tobytes())
+        self.index.set_anchors(anchors[0], anchors[1])
 
     def reload_config(self) -> dict[str, Any]:
         fresh = Config.load(self.paths.config)
@@ -818,57 +857,63 @@ class Engine:
             raise EngineError("give a search query or a file to compare against")
         file_filter = self.store.file_ids_under(under) if under else None
         pool = max(limit * 6, 60)
-        vector_hits: list[tuple[int, float]] = []
+        scored: dict[int, tuple[float, float]] = {}
         keyword_hits: list[tuple[int, float]] = []
         primary = code_query = None
+        calibrate = True
         if like:
             primary, _kind = self._embed_like(like)
             mode = "vector"
+            calibrate = False
         elif mode != "keyword":
+            self.ensure_anchors()
             embedded = self.embedder.embed_query(query)
             primary, code_query = embedded["search"], embedded["code"]
         if primary is not None:
-            vector_hits = self.index.search(primary, pool, code_query, kinds, file_filter)
+            for chunk_id, score, raw in self.index.search(primary, pool, code_query, kinds, file_filter, calibrate):
+                scored[chunk_id] = (score, raw)
         if query and mode != "vector":
             keyword_hits = self.store.keyword_search(query, pool, kinds, under)
+            missing = [chunk_id for chunk_id, _rank in keyword_hits if chunk_id not in scored]
+            if missing and primary is not None:
+                scored.update(self.index.score_of(missing, primary, code_query, calibrate))
 
-        fused: dict[int, float] = {}
-        for rank, (chunk_id, _score) in enumerate(vector_hits):
-            fused[chunk_id] = fused.get(chunk_id, 0.0) + 1.0 / (RRF_K + rank + 1)
-        weight = 1.0 if mode == "keyword" else KEYWORD_WEIGHT
-        for rank, (chunk_id, _score) in enumerate(keyword_hits):
-            fused[chunk_id] = fused.get(chunk_id, 0.0) + weight / (RRF_K + rank + 1)
-        similarity = dict(vector_hits)
-        keyword_ids = {chunk_id for chunk_id, _score in keyword_hits}
-        missing = [chunk_id for chunk_id in keyword_ids if chunk_id not in similarity]
-        if missing and primary is not None:
-            similarity.update(self.index.score_of(missing, primary, code_query))
+        keyword_ids = [chunk_id for chunk_id, _rank in keyword_hits]
+        details = self.store.chunk_details(list(dict.fromkeys([*scored, *keyword_ids])))
+        coverage = self._keyword_coverage(query, keyword_ids, details) if keyword_hits else {}
+        if mode == "keyword":
+            ranked = [chunk_id for chunk_id in keyword_ids if chunk_id in details]
+            final = {chunk_id: None for chunk_id in ranked}
+        else:
+            final = {
+                chunk_id: score + KEYWORD_BONUS * coverage.get(chunk_id, 0.0) for chunk_id, (score, _raw) in scored.items()
+            }
+            ranked = sorted(final, key=lambda chunk_id: -final[chunk_id])
 
-        ranked = sorted(fused, key=lambda chunk_id: -fused[chunk_id])
-        details = self.store.chunk_details(ranked)
         hits = []
         per_file_count: dict[int, int] = {}
-        like_path = os.path.abspath(like) if like else None
         for chunk_id in ranked:
             detail = details.get(chunk_id)
             if detail is None:
                 continue
-            if like_path and detail["path"] == like_path:
+            if like and detail["path"] == like:
                 continue
-            score = similarity.get(chunk_id)
+            score = final[chunk_id]
             if min_score is not None and (score is None or score < min_score):
                 continue
             count = per_file_count.get(detail["file_id"], 0)
             if per_file and count >= per_file:
                 continue
             per_file_count[detail["file_id"]] = count + 1
+            raw = scored.get(chunk_id, (None, None))[1]
             hits.append(
                 {
                     "path": detail["path"],
                     "kind": detail["file_kind"],
                     "part": detail["kind"],
                     "score": None if score is None else round(score, 4),
-                    "keyword": chunk_id in keyword_ids,
+                    "similarity": None if raw is None else round(raw, 4),
+                    "keyword": round(coverage.get(chunk_id, 0.0), 3),
                     "start_line": detail["start_line"],
                     "end_line": detail["end_line"],
                     "start_sec": detail["start_sec"],
@@ -880,7 +925,32 @@ class Engine:
             )
             if len(hits) >= limit:
                 break
-        return {"hits": hits, "seconds": round(time.time() - started, 3), "mode": mode, "searched": len(self.index)}
+        return {
+            "hits": hits,
+            "seconds": round(time.time() - started, 3),
+            "mode": mode,
+            "searched": len(self.index),
+            "calibrated": calibrate and mode != "keyword",
+        }
+
+    def _keyword_coverage(self, query: str, chunk_ids: list[int], details: dict[int, dict[str, Any]]) -> dict[int, float]:
+        terms = query_terms(query)
+        if not terms:
+            return {}
+        total = max(self.store.chunk_count(), 1)
+        counts = self.store.term_document_counts(terms)
+        weights = {
+            term: math.log(1.0 + (total - counts.get(term, 0) + 0.5) / (counts.get(term, 0) + 0.5)) for term in terms
+        }
+        whole = sum(weights.values()) or 1.0
+        coverage = {}
+        for chunk_id in chunk_ids:
+            detail = details.get(chunk_id)
+            if detail is None:
+                continue
+            present = set(tokenize(detail["path"])) | set(tokenize(detail["text"] or ""))
+            coverage[chunk_id] = sum(weight for term, weight in weights.items() if term in present) / whole
+        return coverage
 
     def forget(self, path: str) -> dict[str, Any]:
         root = self.store.root_by_path(path)

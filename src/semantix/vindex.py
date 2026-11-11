@@ -20,6 +20,27 @@ class VectorIndex:
         self._files = np.zeros(0, dtype=np.int64)
         self._kinds = np.zeros(0, dtype=np.uint8)
         self._alive = np.zeros(0, dtype=bool)
+        self._baseline = np.zeros(0, dtype=np.float32)
+        self._anchors: tuple[np.ndarray, np.ndarray] | None = None
+
+    @property
+    def calibrated(self) -> bool:
+        return self._anchors is not None
+
+    def set_anchors(self, search: np.ndarray, code: np.ndarray) -> None:
+        with self._lock:
+            self._anchors = (np.ascontiguousarray(search), np.ascontiguousarray(code))
+            self._baseline[: self._size] = self._baseline_for(self._vectors[: self._size], self._kinds[: self._size])
+
+    def _baseline_for(self, vectors: np.ndarray, kinds: np.ndarray) -> np.ndarray:
+        if self._anchors is None or not len(vectors):
+            return np.zeros(len(vectors), dtype=np.float32)
+        search, code = self._anchors
+        general = (vectors @ search.T).mean(axis=1)
+        is_code = kinds == CODE_KIND
+        if is_code.any():
+            general = np.where(is_code, (vectors @ code.T).mean(axis=1), general)
+        return general.astype(np.float32)
 
     def __len__(self) -> int:
         with self._lock:
@@ -34,7 +55,9 @@ class VectorIndex:
         vectors = np.zeros((capacity, self.dimension), dtype=np.float32)
         vectors[: self._size] = self._vectors[: self._size]
         self._vectors = vectors
-        for name, dtype in (("_ids", np.int64), ("_files", np.int64), ("_kinds", np.uint8), ("_alive", bool)):
+        for name, dtype in (
+            ("_ids", np.int64), ("_files", np.int64), ("_kinds", np.uint8), ("_alive", bool), ("_baseline", np.float32)
+        ):
             grown = np.zeros(capacity, dtype=dtype)
             grown[: self._size] = getattr(self, name)[: self._size]
             setattr(self, name, grown)
@@ -51,6 +74,7 @@ class VectorIndex:
             self._files[self._size : end] = file_ids
             self._kinds[self._size : end] = [KIND_CODES[kind] for kind in kinds]
             self._alive[self._size : end] = True
+            self._baseline[self._size : end] = self._baseline_for(self._vectors[self._size : end], self._kinds[self._size : end])
             self._size = end
 
     def remove_files(self, file_ids) -> None:
@@ -69,6 +93,7 @@ class VectorIndex:
         self._ids = self._ids[: self._size][keep].copy()
         self._files = self._files[: self._size][keep].copy()
         self._kinds = self._kinds[: self._size][keep].copy()
+        self._baseline = self._baseline[: self._size][keep].copy()
         self._alive = np.ones(count, dtype=bool)
         self._size = count
 
@@ -89,11 +114,13 @@ class VectorIndex:
         code_query: np.ndarray | None = None,
         kinds: list[str] | None = None,
         file_ids: np.ndarray | None = None,
-    ) -> list[tuple[int, float]]:
+        calibrate: bool = True,
+    ) -> list[tuple[int, float, float]]:
         with self._lock:
             if not self._size:
                 return []
-            scores = self.scores(query, code_query)
+            raw = self.scores(query, code_query)
+            scores = raw - self._baseline[: self._size] if calibrate else raw
             mask = self._alive[: self._size].copy()
             if kinds is not None:
                 codes = np.asarray([KIND_CODES[kind] for kind in kinds], dtype=np.uint8)
@@ -107,16 +134,20 @@ class VectorIndex:
             limit = min(limit, len(candidates))
             top = np.argpartition(-picked, limit - 1)[:limit]
             top = top[np.argsort(-picked[top])]
-            return [(int(self._ids[candidates[i]]), float(picked[i])) for i in top]
+            return [(int(self._ids[candidates[i]]), float(picked[i]), float(raw[candidates[i]])) for i in top]
 
-    def score_of(self, chunk_ids: list[int], query: np.ndarray, code_query: np.ndarray | None = None) -> dict[int, float]:
+    def score_of(
+        self, chunk_ids: list[int], query: np.ndarray, code_query: np.ndarray | None = None, calibrate: bool = True
+    ) -> dict[int, tuple[float, float]]:
         with self._lock:
             if not self._size or not chunk_ids:
                 return {}
-            positions = np.flatnonzero(np.isin(self._ids[: self._size], np.asarray(chunk_ids, dtype=np.int64)))
+            wanted = np.isin(self._ids[: self._size], np.asarray(chunk_ids, dtype=np.int64))
+            positions = np.flatnonzero(wanted & self._alive[: self._size])
             result = {}
             for position in positions:
-                vector = self._vectors[position]
                 use_code = code_query is not None and self._kinds[position] == CODE_KIND
-                result[int(self._ids[position])] = float(vector @ (code_query if use_code else query))
+                raw = float(self._vectors[position] @ (code_query if use_code else query))
+                score = raw - float(self._baseline[position]) if calibrate else raw
+                result[int(self._ids[position])] = (score, raw)
             return result

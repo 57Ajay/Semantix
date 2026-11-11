@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 CREATE INDEX IF NOT EXISTS chunks_file ON chunks(file_id);
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(path, body, tokenize = 'unicode61');
+CREATE VIRTUAL TABLE IF NOT EXISTS chunks_vocab USING fts5vocab(chunks_fts, 'row');
+CREATE TABLE IF NOT EXISTS blobs (key TEXT PRIMARY KEY, value BLOB NOT NULL);
 """
 
 STATUS_INDEXED = "indexed"
@@ -62,7 +64,24 @@ STATUS_PENDING = "pending"
 STATUS_STALE = "stale"
 STATUS_ERROR = "error"
 
-WORD = re.compile(r"[\w]+", re.UNICODE)
+WORD = re.compile(r"[^\W_]+", re.UNICODE)
+STOPWORDS = frozenset(
+    """
+    a an and are as at be but by can did do does for from had has have how i if in into is it its
+    me my of on or our so than that the their them then there these they this to was we were what
+    when where which who why will with would you your about some any all not no
+    """.split()
+)
+
+
+def tokenize(text: str) -> list[str]:
+    return [word.lower() for word in WORD.findall(text)]
+
+
+def query_terms(text: str) -> list[str]:
+    words = list(dict.fromkeys(word for word in tokenize(text) if len(word) > 1))
+    meaningful = [word for word in words if word not in STOPWORDS]
+    return (meaningful or words)[:32]
 
 
 @dataclass
@@ -111,14 +130,8 @@ def path_prefix_args(path: str) -> tuple:
     return (path, len(prefix), prefix)
 
 
-def fts_query(text: str) -> str:
-    words = [word for word in WORD.findall(text) if len(word) > 1]
-    seen = []
-    for word in words:
-        lowered = word.lower()
-        if lowered not in seen:
-            seen.append(lowered)
-    return " OR ".join(f'"{word}"' for word in seen[:32])
+def fts_query(terms: list[str]) -> str:
+    return " OR ".join(f'"{term}"' for term in terms)
 
 
 class Store:
@@ -160,6 +173,26 @@ class Store:
 
     def set_meta(self, key: str, value: str) -> None:
         self._run("INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+    def get_blob(self, key: str) -> bytes | None:
+        row = self._one("SELECT value FROM blobs WHERE key = ?", (key,))
+        return row[0] if row else None
+
+    def set_blob(self, key: str, value: bytes) -> None:
+        self._run("INSERT INTO blobs(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+    def chunk_count(self) -> int:
+        return self._one("SELECT COUNT(*) FROM chunks")[0]
+
+    def term_document_counts(self, terms: list[str]) -> dict[str, int]:
+        if not terms:
+            return {}
+        marks = ",".join("?" * len(terms))
+        try:
+            rows = self._all(f"SELECT term, doc FROM chunks_vocab WHERE term IN ({marks})", tuple(terms))
+        except sqlite3.OperationalError:
+            return {}
+        return {row[0]: row[1] for row in rows}
 
     def get_stat(self, key: str) -> float | None:
         row = self._one("SELECT value FROM stats WHERE key = ?", (key,))
@@ -366,7 +399,7 @@ class Store:
     def keyword_search(
         self, text: str, limit: int, kinds: list[str] | None = None, under: str | None = None
     ) -> list[tuple[int, float]]:
-        query = fts_query(text)
+        query = fts_query(query_terms(text))
         if not query:
             return []
         sql = (
