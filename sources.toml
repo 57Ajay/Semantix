@@ -1,0 +1,571 @@
+# Origin and licence of every file in corpus/. Entries ending in / cover a whole folder.
+
+[[source]]
+path = "projects/boltons/"
+origin = "https://pypi.org/project/boltons/26.2.0/"
+author = "Mahmoud Hashemi and contributors"
+licence = "BSD-3-Clause, licenses/boltons-LICENSE"
+note = "17 modules and the README from the boltons-26.2.0 source archive (sha256 d39cfd15c1a1c3bd4d705c82252fa9edb8e4f5e8cc039f8e39afac7b1b47e92c), unmodified"
+
+[[source]]
+path = "projects/express/"
+origin = "https://www.npmjs.com/package/express/v/5.3.0"
+author = "TJ Holowaychuk, Douglas Christopher Wilson and contributors"
+licence = "MIT, licenses/express-LICENSE"
+note = "lib/, index.js and Readme.md from express-5.3.0.tgz (sha256 62450d99e36dc393295f1ddd93cb9291e658c169f3b700b0110c1ae8fa799930), unmodified"
+
+[[source]]
+path = "projects/cobra/"
+origin = "https://github.com/spf13/cobra/tree/v1.10.2"
+author = "The Cobra Authors"
+licence = "Apache-2.0, licenses/cobra-LICENSE"
+note = "every non-test .go file, README.md, SECURITY.md and site/content (except the list of projects) from the v1.10.2 module archive (sha256 a00aae6fcd631e0fde52c98604452ff70e1b73c3b8a560d68db15aff5e26872d), unmodified"
+
+[[source]]
+path = "notes/"
+origin = "written for this set"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional notes; any resemblance to real people or companies is accidental"
+
+[[source]]
+path = "screenshots/Screenshot 2024-05-07 at 09.14.22.png"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "25c865498d0d80b746d45af319ab6d503228207a60f7938bddab34db90fe6b55"
+
+[[source]]
+path = "screenshots/Screenshot 2024-07-03 at 16.40.05.png"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "dc03a3fac25834ad45694cde4df299bb023e0db6b427f8c86c09a33bacac19d9"
+
+[[source]]
+path = "scans/IMG_7731.jpg"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "a6e40977bb9aa2b8b5765079d949705e4cadd008639978ff2f4225495c53abe0"
+
+[[source]]
+path = "slides/q3-planning-deck-slide3.png"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "659590ee50966d9fa267adf61e1428d7280b4ec67593e65c6e3061ee686cd510"
+
+[[source]]
+path = "diagrams/architecture-v2.png"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "96a4efc6b57e9ab6a0176d270d0cadce9ffb0f9b0189552a9548738abf54d90a"
+
+[[source]]
+path = "photos/2024/IMG_5590.jpg"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "c4f312d6125bb5d172b75ce3c4c52241f262ccb651ed487d888ca9439069ab8f"
+
+[[source]]
+path = "scans/boarding-pass.png"
+origin = "drawn for this set with Pillow"
+author = "Semantix"
+licence = "MIT, like the rest of the repository"
+note = "fictional content; domain, phone number, card and flight are made up"
+sha256 = "90d13cdd8c519bb3c8784949085046328777630367448c1d7ab72b6fde94b7ba"
+
+[[source]]
+path = "photos/2024/IMG_2214.jpg"
+origin = "https://www.flickr.com/photos/71401718@N00/6758338433"
+author = "Wonderlane"
+licence = "CC0 1.0"
+shows = "two dogs playing in the snow, people with an orange sled behind them"
+note = "resized to at most 1024 pixels"
+sha256 = "6d22c573d879c1de72d373585ac290866709d5d2729929bc56bfa9c00843e91e"
+
+[[source]]
+path = "photos/2024/IMG_2231.jpg"
+origin = "https://www.flickr.com/photos/37996646802@N01/33213360198"
+author = "cogdogblog"
+licence = "CC0 1.0"
+shows = "a cat on a leash rolling on its back in the snow"
+note = "resized to at most 1024 pixels"
+sha256 = "827973224f272542fce098c594ba7792df6ced62df1f076bde9856b8c2ff0971"
+
+[[source]]
+path = "photos/2023/IMG_0871.jpg"
+origin = "https://www.flickr.com/photos/36943025@N07/18960401328"
+author = "Lottie's pets & stuff"
+licence = "CC0 1.0"
+shows = "a dog swimming in a lake, head above the water"
+note = "resized to at most 1024 pixels"
+sha256 = "819b79bd8cb4ef1e86fcd6072c734b52a74e9c0babbe58878e3a9f887a5b72ff"
+
+[[source]]
+path = "photos/2023/IMG_0412.jpg"
+origin = "https://stocksnap.io/photo/cat-cute-KKYDNLT7LH"
+author = "Sabri Tuzcu"
+licence = "CC0 1.0"
+shows = "a tabby cat asleep on the arm of a yellow sofa"
+note = "resized to at most 1024 pixels"
+sha256 = "0a6936bd9b26883e5eb56bb7d2a6126e57df28038cfe6523252681fcd2109f6c"
+
+[[source]]
+path = "photos/2025/IMG_8120.jpg"
+origin = "https://wordpress.org/photos/photo/505645b866/"
+author = "vaishaliagola27"
+licence = "CC0 1.0"
+shows = "puppies sleeping in a pile"
+note = "resized to at most 1024 pixels"
+sha256 = "890bc0d664006960cb54705af9183541fc668d7c919f38876f2c935982de12c3"
+
+[[source]]
+path = "photos/2025/IMG_8133.jpg"
+origin = "https://www.rawpixel.com/image/5966265/small-kitten-portrait"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "a kitten lying down, looking at the camera"
+note = "resized to at most 1024 pixels"
+sha256 = "1a5978962bcca4195e05607f8f01cdcecf9c08fbeee7ba092bfef156c5718e42"
+
+[[source]]
+path = "photos/2023/IMG_1190.jpg"
+origin = "https://www.rawpixel.com/image/5926913/photo-image-background-light-public-domain"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "a bicycle leaning against a wall on a cobblestone street"
+note = "resized to at most 1024 pixels"
+sha256 = "f10a5954aea5e2ead7c55a05346c77de2d8997ed7fefe2dc4ab33c83c691ec1a"
+
+[[source]]
+path = "photos/2023/IMG_1192.jpg"
+origin = "https://www.flickr.com/photos/104736837@N03/11176613523"
+author = "Amsterdam free photos & pictures of the Dutch city"
+licence = "CC0 1.0"
+shows = "a rack full of parked bicycles"
+note = "resized to at most 1024 pixels"
+sha256 = "614aa7148ce35a45c43ed043e9b171776fe5679937c7838451514b3267e9c103"
+
+[[source]]
+path = "photos/2023/IMG_1544.jpg"
+origin = "https://stocksnap.io/photo/lighthouse-coast-WG38TMPY6E"
+author = "Holly's Coastal View"
+licence = "CC0 1.0"
+shows = "a lighthouse on rocks at sunset"
+note = "resized to at most 1024 pixels"
+sha256 = "87a65222726f154b6904b1e4ee4ddec646b3eb54c7113e8f8c1d70d6028bc455"
+
+[[source]]
+path = "photos/2024/IMG_3301.jpg"
+origin = "https://www.rawpixel.com/image/3295526/free-photo-image-palm-tree-sea-palms-coast"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "a tropical beach with a palm tree and turquoise water"
+note = "resized to at most 1024 pixels"
+sha256 = "833d5c0c88b238773e515c869ea914cc392f4e010f92df65e140cb6422a588dc"
+
+[[source]]
+path = "photos/2024/IMG_3305.jpg"
+origin = "https://www.flickr.com/photos/88123769@N02/16016497379"
+author = "Bernard Spragg"
+licence = "CC0 1.0"
+shows = "a green coconut lying on the sand"
+note = "resized to at most 1024 pixels"
+sha256 = "4d1430ff008c2fb9b3ab0c55e21bb4476cbba79049762f16d7397ee5d0cf1742"
+
+[[source]]
+path = "photos/2024/IMG_3350.jpg"
+origin = "https://www.flickr.com/photos/56544547@N00/17122091822"
+author = "athrasher"
+licence = "CC0 1.0"
+shows = "waves crashing against rocks"
+note = "resized to at most 1024 pixels"
+sha256 = "e6e5c0839c932b28a1e347de7bdab2b0c4e06f0d486752de76f6ef3312f3ee82"
+
+[[source]]
+path = "photos/2023/IMG_1702.jpg"
+origin = "https://wordpress.org/photos/photo/6896a4a302/"
+author = "Uttkrista Chhetri"
+licence = "CC0 1.0"
+shows = "a snow-covered mountain peak above a green slope"
+note = "resized to at most 1024 pixels"
+sha256 = "1df99facf4b8397d99781beb00d384aa1a872e00c331eac579311ba9e3944520"
+
+[[source]]
+path = "photos/2023/IMG_1710.jpg"
+origin = "https://www.rawpixel.com/image/3305359/free-photo-image-landscape-river-lake-nature"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "snowy mountains reflected in a calm lake"
+note = "resized to at most 1024 pixels"
+sha256 = "406cb3a6e7e3517d5ffc96a0ec9297eff82f71ab5680aafbd0e8fd04626d228d"
+
+[[source]]
+path = "photos/2023/IMG_1805.jpg"
+origin = "https://www.rawpixel.com/image/5917279/photo-image-public-domain-free-landscape"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "desert sand dunes with footprints"
+note = "resized to at most 1024 pixels"
+sha256 = "d2363d2315efac400207e9381943f642132d438d0061b6b9c4cfd1a91604e1f6"
+
+[[source]]
+path = "photos/2025/IMG_8402.jpg"
+origin = "https://www.flickr.com/photos/91501748@N07/36808022704"
+author = "Mathias Appel"
+licence = "CC0 1.0"
+shows = "a bald eagle with its beak open"
+note = "resized to at most 1024 pixels"
+sha256 = "0e89a60fb0f94e4a6836503fa8ac22eb587ea91315b8bac8e76f5a6f00ec0967"
+
+[[source]]
+path = "photos/2025/IMG_8415.jpg"
+origin = "https://www.rawpixel.com/image/5913142/image-public-domain-nature-free"
+author = "unknown"
+licence = "CC0 1.0"
+shows = "a hummingbird feeding at red flowers"
+note = "resized to at most 1024 pixels"
+sha256 = "30047e17e3a2ce0e5dfb32231376455ca24089b4ecd83c8622a9cbde5eec90f9"
+
+[[source]]
+path = "photos/2024/IMG_4610.jpg"
+origin = "https://www.flickr.com/photos/8101022@N05/9119605572"
+author = "Sloalan"
+licence = "CC0 1.0"
+shows = "a great horned owl with yellow eyes"
+note = "resized to at most 1024 pixels"
+sha256 = "e65167f53ce157009b69d3b9a12eecfb0fdd0d246bd3cd4bfdfcdbc6c45f9d9a"
+
+[[source]]
+path = "photos/2025/IMG_8530.jpg"
+origin = "https://stocksnap.io/photo/elephants-herd-FXHPHAWNRX"
+author = "World Travel Adventures"
+licence = "CC0 1.0"
+shows = "a herd of elephants walking across grassland"
+note = "resized to at most 1024 pixels"
+sha256 = "026f29e9ec6ce11a6caf254e9290564476b7729b5369df7706fdf1007e3de93d"
+
+[[source]]
+path = "photos/2025/IMG_8544.jpg"
+origin = "https://www.flickr.com/photos/88123769@N02/14157028007"
+author = "Bernard Spragg"
+licence = "CC0 1.0"
+shows = "the head and neck of a giraffe"
+note = "resized to at most 1024 pixels"
+sha256 = "a88a45819c945665c390667650552a1a759a6b7b8070e7c0cf2d13cc963882ab"
+
+[[source]]
+path = "photos/2024/IMG_3420.jpg"
+origin = "https://www.flickr.com/photos/88123769@N02/13141378514"
+author = "Bernard Spragg"
+licence = "CC0 1.0"
+shows = "a sea turtle resting on a sandy beach"
+note = "resized to at most 1024 pixels"
+sha256 = "5624658cbfe01468c1a0bd42538507be2e759461fff224ff4ab7dc1cefedd054"
+
+[[source]]
+path = "photos/2024/IMG_5012.jpg"
+origin = "https://www.flickr.com/photos/73080909@N03/8793058944"
+author = "spongebabyalwaysfull"
+licence = "CC0 1.0"
+shows = "orange jellyfish in dark blue water"
+note = "resized to at most 1024 pixels"
+sha256 = "9a303a1c840b0137e8d9a4e4abdd99b9addf22968531ac6da8450e4462c32a6f"
+
+[[source]]
+path = "pictures/space/as11-40-5931.jpg"
+origin = "https://images.nasa.gov/details/as11-40-5931"
+author = "NASA (JSC)"
+licence = "Public domain (NASA media)"
+shows = "an astronaut on the moon next to the lunar module"
+note = "resized to at most 1024 pixels"
+sha256 = "a99884847e5a051f47efd6119328b5142bcf693658598cb808d3f624b141b000"
+
+[[source]]
+path = "pictures/space/as11-40-5880.jpg"
+origin = "https://images.nasa.gov/details/as11-40-5880"
+author = "NASA (JSC)"
+licence = "Public domain (NASA media)"
+shows = "a boot print in lunar soil"
+note = "resized to at most 1024 pixels"
+sha256 = "e286636abcacc148764c393d361c695a688eee31663266977a1884f1a892e27c"
+
+[[source]]
+path = "pictures/space/GSFC_20171208_Archive_e001386.jpg"
+origin = "https://images.nasa.gov/details/GSFC_20171208_Archive_e001386"
+author = "NASA (GSFC)"
+licence = "Public domain (NASA media)"
+shows = "the whole Earth seen from space"
+note = "resized to at most 1024 pixels"
+sha256 = "4516146f070ae26eae5fdb31b584a800a78941c6a41b8815796cb9dee9d5a074"
+
+[[source]]
+path = "pictures/space/artemis_ii_pad_01292026_13.jpg"
+origin = "https://images.nasa.gov/details/Artemis II at the pad sunsetting 01292026_13"
+author = "NASA (MSFC)"
+licence = "Public domain (NASA media)"
+shows = "a rocket on its launch pad at sunset"
+note = "resized to at most 1024 pixels"
+sha256 = "ff20bd10e061bb8cdb051bfaf8db3b2856500b76c77a0ab1a3cef667e6dc0eaa"
+
+[[source]]
+path = "pictures/space/GSFC_20171208_Archive_e001151.jpg"
+origin = "https://images.nasa.gov/details/GSFC_20171208_Archive_e001151"
+author = "NASA (GSFC)"
+licence = "Public domain (NASA media)"
+shows = "a spiral galaxy"
+note = "resized to at most 1024 pixels"
+sha256 = "167d541c7f3f425c0a2bb34341f73b2f319035a37afcb35208f7e5f74d539c18"
+
+[[source]]
+path = "pictures/space/iss028e031903.jpg"
+origin = "https://images.nasa.gov/details/iss028e031903"
+author = "NASA (JSC)"
+licence = "Public domain (NASA media)"
+shows = "the eye of a hurricane seen from orbit"
+note = "resized to at most 1024 pixels"
+sha256 = "5e2ae32a76ab9dec58b9c49b1f857815ccf3aa7aa93f43a39127fa1b08f291cd"
+
+[[source]]
+path = "pictures/space/PIA19808.jpg"
+origin = "https://images.nasa.gov/details/PIA19808"
+author = "NASA (JPL)"
+licence = "Public domain (NASA media)"
+shows = "the Curiosity rover on Mars"
+note = "resized to at most 1024 pixels"
+sha256 = "589472bf95d24b5a8b536933c6d22c65d6b725ee10bd2712834dc7a39ef192fd"
+
+[[source]]
+path = "pictures/space/jsc2018e087573.jpg"
+origin = "https://images.nasa.gov/details/jsc2018e087573"
+author = "NASA (KSC)"
+licence = "Public domain (NASA media)"
+shows = "a person wearing a virtual reality headset in a training lab"
+note = "resized to at most 1024 pixels"
+sha256 = "989f0540a234633aae49c4d9c9fc9691ae24fcaf580bb643834dd8f841e0692a"
+
+[[source]]
+path = "photos/2024/IMG_4402.jpg"
+origin = "https://commons.wikimedia.org/wiki/File:US_Navy_070804-N-3390M-001_A_Fireworks_display_over_lake_Washington_marks_the_end_of_the_day%27s_event_during_2007_Seattle_Seafair.jpg"
+author = "U.S. Navy photo by Mass Communication Specialist 2nd Class Douglas G. Morrison"
+licence = "Public domain"
+shows = "fireworks over a lake at night"
+note = "resized to at most 1024 pixels"
+sha256 = "7461b14442c15afd7423c80699bf4948ac8be1648a9b851e3977721a4ee38671"
+
+[[source]]
+path = "photos/2023/IMG_1388.jpg"
+origin = "https://commons.wikimedia.org/wiki/File:Kiwarrak_Mountain_Bike_Park_trail_ramp.jpg"
+author = "JaredMcKenzie"
+licence = "CC0"
+shows = "a rider's view of a mountain bike going over a wooden ramp on a forest trail"
+note = "resized to at most 1024 pixels"
+sha256 = "e3e7410050c4525303073558ae8e525a1695f26f238f0304ec73507621f34968"
+
+[[source]]
+path = "audio/field-recordings/rec_001.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-stream.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a stream"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-StreamMUWO.mp3, converted to mono MP3"
+sha256 = "95d6524736599a57c890aaca271974e83d6321605ccfb9d78bc8a9d080ff6158"
+
+[[source]]
+path = "audio/field-recordings/rec_002.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-cannon.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "cannon fire"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-cannon.mp3, converted to mono MP3"
+sha256 = "256c942cb43984fa4bbad44e7aac007cc210a8ced065ceea1645918b4d6c5c7d"
+
+[[source]]
+path = "audio/field-recordings/rec_003.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-harmonica.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a harmonica"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-HarmonicaYOSE.mp3, converted to mono MP3"
+sha256 = "373cc4d169471f3a435c884177f126c9f6d2cdd29599af5531fe7282a177f019"
+
+[[source]]
+path = "audio/field-recordings/rec_004.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-humpback-whale.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "humpback whale song"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-HumpbackGLBA.mp3, converted to mono MP3"
+sha256 = "9cedd6e4b257122a8c8c6479671218b2bea6b3ca71ecafc67597ae7943bcd686"
+
+[[source]]
+path = "audio/field-recordings/rec_005.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-siren.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a siren"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-SirenGRTE.mp3, converted to mono MP3"
+sha256 = "7514b61c2a27dd3908f4e68f4d22bed1487b396c3b06c14df0f96a728d133a02"
+
+[[source]]
+path = "audio/field-recordings/rec_006.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-crickets.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "crickets"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-Cricket.mp3, converted to mono MP3"
+sha256 = "434689275fee25318294782a96dd6f5a26e631349ac9377dc49400a3bb127734"
+
+[[source]]
+path = "audio/field-recordings/rec_007.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-reveille.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a bugle playing reveille"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-ReveilleFOLS.mp3, converted to mono MP3, first 60 seconds"
+sha256 = "a05db6cb8e3cb14290a3b312a23a9e0e847500782449c4e456c84dcb044d827a"
+
+[[source]]
+path = "audio/field-recordings/rec_008.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-helicopter.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a helicopter"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-HelicopterYOSE.mp3, converted to mono MP3"
+sha256 = "6fae48cf3e13ee573c78aa12d71a00fe8830164ed1168fb98598704eb1071941"
+
+[[source]]
+path = "audio/field-recordings/rec_009.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-thunder.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "thunder"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-Thunder.mp3, converted to mono MP3"
+sha256 = "7fc89442854b4c555b1a2c12c37015a170e40795c1bfd63752cb042b1be57758"
+
+[[source]]
+path = "audio/field-recordings/rec_010.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-rain.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "rain"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-RainDEPO.mp3, converted to mono MP3"
+sha256 = "838d0bf9cfb099e69eafdcdccdaa4ca4d3f34bfe0ba9ba97d617112efe0a63ae"
+
+[[source]]
+path = "audio/field-recordings/rec_011.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-coyotes.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "coyotes"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-CoyotesMOJA.mp3, converted to mono MP3"
+sha256 = "3d8d7825ef996fbf5b848bac6350c8a79fcc43e1cb9e1a0060605aa7fb74a19a"
+
+[[source]]
+path = "audio/field-recordings/rec_012.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-ocean.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "ocean waves"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-OceanOlympicNP.mp3, converted to mono MP3"
+sha256 = "7dff50b4729276d7d5821f29bf40a55fbe70c907b6345a120c61495c28364fc8"
+
+[[source]]
+path = "audio/field-recordings/rec_013.mp3"
+origin = "https://www.nps.gov/subjects/sound/sounds-wolf.htm"
+author = "U.S. National Park Service"
+licence = "Public domain (U.S. government work)"
+shows = "a wolf howling"
+note = "source file https://www.nps.gov/nps-audiovideo/legacy/mp3/nri/avElement/nri-WolfDENA.mp3, converted to mono MP3"
+sha256 = "0dea1facf6c7657c2e929d50176661ef0dd542221a988d626c985bf43b7ab9e3"
+
+[[source]]
+path = "audio/audiobooks/us_navy_cookbook_13.mp3"
+origin = "https://archive.org/details/usnavycookbook1920_2610_librivox"
+author = "LibriVox volunteers, text by the U.S. Naval Institute (1920)"
+licence = "Public domain (LibriVox)"
+shows = "a reading about salt, yeast and dough temperature for bread"
+note = "section 13, Bread and Pastry part 1, 0:30 to 1:30"
+sha256 = "7b392dfc20159a97dc5d29f04ba3d912b9e9fb02722b0df0a011ebf8f699988b"
+
+[[source]]
+path = "audio/audiobooks/art_of_war_12.mp3"
+origin = "https://archive.org/details/artofwar3_pc_librivox"
+author = "LibriVox volunteers, text by Sun Tzu"
+licence = "CC0 1.0"
+shows = "a reading about the five ways of attacking with fire"
+note = "chapter 12, The Attack by Fire, 0:25 to 1:25"
+sha256 = "da904889500d6428484dfec08999045a6a8a344fa967432db060b726539d87fc"
+
+[[source]]
+path = "audio/audiobooks/sun_moon_and_stars_06.mp3"
+origin = "https://archive.org/details/sunmoonandstars_2502_librivox"
+author = "LibriVox volunteers, text by Agnes Giberne"
+licence = "Public domain (LibriVox)"
+shows = "a reading that introduces the Moon as Earth's companion"
+note = "chapter 6, Our Particular Friend and Attendant, 0:30 to 1:30"
+sha256 = "4bba999bcc7e6415aa6283e71a0a5415b7e657426ea24b5e0fa4535cd30e1c51"
+
+[[source]]
+path = "music/chopin_nocturne_op37_no2.mp3"
+origin = "https://archive.org/details/parso-1c53a71e4ef6f47591ab605d801bc3780b27824a"
+author = "Olga Gurevich (performance), Frederic Chopin (composition)"
+licence = "CC0 1.0"
+shows = "solo piano"
+note = "first 60 seconds"
+sha256 = "e0a14d0d45afd4614099a6ab8399b6b0b3add8e0369aceb4373d9183f4e6757d"
+
+[[source]]
+path = "music/german_fidelity_march_1914.mp3"
+origin = "https://archive.org/details/loc-jukebox-134789-german-fidelity-march"
+author = "United States Marine Band, 1914 (Library of Congress National Jukebox)"
+licence = "Public domain mark"
+shows = "a military band playing a march"
+note = "first 60 seconds"
+sha256 = "ccfa236f47ab6c89a0795697e2a52ba2f8427f0b04a343ffaab6cb5b81caaf76"
+
+[[source]]
+path = "videos/VID_20050726_launch.mp4"
+origin = "https://images.nasa.gov/details/ksc_072605_rtf_launch"
+author = "NASA Kennedy Space Center"
+licence = "Public domain (NASA media)"
+shows = "STS-114 launch: pad and liftoff with a crowd watching (0-30 s), onboard camera (35-50 s), countdown commentary"
+note = "re-encoded"
+sha256 = "867e3bfea6142e557d2f67b3c97d6cb7bf6c3de4b1877546de43aad51347839d"
+
+[[source]]
+path = "videos/duck_and_cover_1951.mp4"
+origin = "https://archive.org/details/ArcherProductionsInc"
+author = "Archer Productions for the Federal Civil Defense Administration (1951)"
+licence = "Public domain"
+shows = "cartoon turtle and song (0-40 s), title cards (45-60 s), classroom and narrator on the atomic bomb (80-95 s), fire and street traffic (100-120 s)"
+note = "first 120 seconds, re-encoded"
+sha256 = "e683bc42c66fc8421388b3194055a2365fc0712c74d833f9c83d38efdcccc85d"
+
+[[source]]
+path = "videos/iss_pass_2023-08-30.mp4"
+origin = "https://images.nasa.gov/details/Expedition_69_Space_Station_Flies_Over_Hurricane_Idalia_Live"
+author = "NASA Johnson Space Center"
+licence = "Public domain (NASA media)"
+shows = "mission control room (0-37 s), clouds and a solar array (38-65 s), Hurricane Idalia with its eye (70-90 s)"
+note = "5:35 to 7:05, scaled to 640 pixels wide"
+sha256 = "2549932d3ce1ae5d747e1731d69026a2b872783e2369eda614b004b41026e139"
+
+[[source]]
+path = "videos/market_street.mp4"
+origin = "https://archive.org/details/TripDown1905"
+author = "Miles Brothers (1906)"
+licence = "Public domain"
+shows = "a streetcar ride down Market Street, San Francisco, with carriages and early cars"
+note = "first 60 seconds, re-encoded"
+sha256 = "c7f207020e17fe43f4ceeaf3897159706eefe7559fba89ffb89651bb160b64f2"

@@ -1,0 +1,855 @@
+# code-intent: a plain-language request should find the function that does it
+
+[[query]]
+id = "code-chunk-list"
+text = "split a list into groups of a fixed size"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/iterutils.py", lines = [286, 306] }]
+
+[[query]]
+id = "code-nested-transform"
+text = "walk a nested structure of dicts and lists and transform every value"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/iterutils.py", lines = [1098, 1301] }]
+
+[[query]]
+id = "code-slug"
+text = "turn an article title into a URL-friendly slug"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/boltons/boltons/strutils.py", lines = [89, 112] }]
+
+[[query]]
+id = "code-human-bytes"
+text = "format a number of bytes as a human readable size like 1.5K"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/strutils.py", lines = [559, 582] }]
+
+[[query]]
+id = "code-strip-ansi"
+text = "remove terminal color escape codes from a string"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/strutils.py", lines = [378, 413] }]
+
+[[query]]
+id = "code-lru"
+text = "cache that evicts the least recently used entry when it is full"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/boltons/boltons/cacheutils.py", lines = [331, 377] }]
+acceptable = ["notes/work/interview-backend-candidate-2024-08.md"]
+
+[[query]]
+id = "code-atomic-write"
+text = "write a file atomically so a crash never leaves a half-written file"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/fileutils.py", lines = [248, 261] }]
+acceptable = ["projects/boltons/boltons/fileutils.py"]
+
+[[query]]
+id = "code-time-ago"
+text = "describe a timestamp as how long ago it was, like 3 hours ago"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/timeutils.py", lines = [251, 280] }]
+
+[[query]]
+id = "code-parse-duration"
+text = "parse a duration string such as 1d 2h 30m into a timedelta"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/boltons/boltons/timeutils.py", lines = [149, 188] }]
+
+[[query]]
+id = "code-priority-queue"
+text = "priority queue where tasks can be removed or have their priority changed"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/queueutils.py", lines = [91, 189] }]
+
+[[query]]
+id = "code-socket-delimiter"
+text = "keep reading from a network connection until a delimiter shows up"
+category = "code-intent"
+relevant = [{ path = "projects/boltons/boltons/socketutils.py", lines = [284, 364] }]
+
+[[query]]
+id = "code-multidict"
+text = "dictionary that can store several values under the same key"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/boltons/boltons/dictutils.py", lines = [86, 653] }]
+
+[[query]]
+id = "code-redirect"
+text = "send the client to a different URL"
+category = "code-intent"
+relevant = [{ path = "projects/express/lib/response.js", lines = [815, 877] }]
+acceptable = [{ path = "projects/express/lib/response.js", lines = [797, 814] }]
+
+[[query]]
+id = "code-cookie"
+text = "set a cookie on the HTTP response"
+category = "code-intent"
+relevant = [{ path = "projects/express/lib/response.js", lines = [748, 796] }]
+acceptable = [{ path = "projects/express/lib/response.js", lines = [715, 747] }]
+
+[[query]]
+id = "code-content-negotiation"
+text = "pick the response format depending on what the client says it accepts"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/express/lib/response.js", lines = [574, 608] }]
+acceptable = [{ path = "projects/express/lib/request.js", lines = [127, 139] }]
+
+[[query]]
+id = "code-download"
+text = "make the browser download a file instead of showing it"
+category = "code-intent"
+relevant = [{ path = "projects/express/lib/response.js", lines = [437, 507] }]
+acceptable = [
+  { path = "projects/express/lib/response.js", lines = [609, 634] },
+  { path = "projects/express/lib/response.js", lines = [375, 436] },
+]
+
+[[query]]
+id = "code-exact-args"
+text = "require a command to be called with exactly two positional arguments"
+category = "code-intent"
+relevant = [{ path = "projects/cobra/args.go", lines = [94, 103] }]
+acceptable = ["projects/cobra/args.go"]
+
+[[query]]
+id = "code-exclusive-flags"
+text = "flags that are not allowed to be used together"
+category = "code-intent"
+split = "test"
+relevant = [{ path = "projects/cobra/flag_groups.go", lines = [65, 80] }]
+acceptable = ["projects/cobra/flag_groups.go"]
+
+[[query]]
+id = "code-typo-suggestions"
+text = "suggest the closest command name when the user makes a typo"
+category = "code-intent"
+relevant = [{ path = "projects/cobra/command.go", lines = [863, 890] }]
+acceptable = [{ path = "projects/cobra/cobra.go", lines = [192, 224] }]
+
+[[query]]
+id = "code-man-pages"
+text = "generate man pages for a command line program"
+category = "code-intent"
+relevant = ["projects/cobra/doc/man_docs.go"]
+acceptable = ["projects/cobra/site/content/docgen/man.md"]
+
+# code-identifier: exact names and error strings
+
+[[query]]
+id = "ident-multidict"
+text = "OrderedMultiDict"
+category = "code-identifier"
+relevant = [{ path = "projects/boltons/boltons/dictutils.py", lines = [86, 653] }]
+
+[[query]]
+id = "ident-required-together"
+text = "MarkFlagsRequiredTogether"
+category = "code-identifier"
+relevant = [{ path = "projects/cobra/flag_groups.go", lines = [33, 48] }]
+
+[[query]]
+id = "ident-sendfile"
+text = "res.sendFile"
+category = "code-identifier"
+split = "test"
+relevant = [{ path = "projects/express/lib/response.js", lines = [375, 436] }]
+
+[[query]]
+id = "ident-recv-until"
+text = "recv_until"
+category = "code-identifier"
+relevant = [{ path = "projects/boltons/boltons/socketutils.py", lines = [284, 364] }]
+
+[[query]]
+id = "ident-cachedproperty"
+text = "cachedproperty"
+category = "code-identifier"
+relevant = [{ path = "projects/boltons/boltons/cacheutils.py", lines = [614, 637] }]
+
+[[query]]
+id = "ident-error-args"
+text = "accepts 1 arg(s), received 2"
+category = "code-identifier"
+split = "test"
+relevant = [{ path = "projects/cobra/args.go", lines = [94, 103] }]
+
+# docs: prose documentation inside the projects
+
+[[query]]
+id = "docs-bash-completion"
+text = "how do I set up bash completion for my program"
+category = "docs"
+relevant = ["projects/cobra/site/content/completions/bash.md"]
+acceptable = ["projects/cobra/site/content/completions/_index.md"]
+
+[[query]]
+id = "docs-security-report"
+text = "how to report a security vulnerability"
+category = "docs"
+relevant = ["projects/cobra/SECURITY.md"]
+
+[[query]]
+id = "docs-express-install"
+text = "install the web framework and write a hello world server"
+category = "docs"
+split = "test"
+relevant = ["projects/express/Readme.md"]
+
+[[query]]
+id = "docs-active-help"
+text = "show hints to the user while they press tab"
+category = "docs"
+relevant = ["projects/cobra/site/content/active_help.md"]
+acceptable = ["projects/cobra/active_help.go", "projects/cobra/site/content/completions/_index.md"]
+
+[[query]]
+id = "docs-subcommands"
+text = "guide to organizing a command line app with subcommands and flags"
+category = "docs"
+relevant = ["projects/cobra/site/content/user_guide.md"]
+acceptable = ["projects/cobra/README.md"]
+
+[[query]]
+id = "docs-boltons-about"
+text = "collection of pure Python utilities that should have been in the standard library"
+category = "docs"
+split = "test"
+relevant = ["projects/boltons/README.md"]
+
+# notes: personal notes found by their topic
+
+[[query]]
+id = "notes-outage"
+text = "why did the API go down in May"
+category = "notes"
+relevant = ["notes/work/incident-2024-05-07-api-outage.md"]
+acceptable = ["screenshots/Screenshot 2024-05-07 at 09.14.22.png"]
+
+[[query]]
+id = "notes-cloud-budget"
+text = "how much do we plan to spend on cloud infrastructure this quarter"
+category = "notes"
+relevant = ["notes/work/2024-04-02-q2-budget-review.md"]
+
+[[query]]
+id = "notes-groceries"
+text = "how much money goes to groceries every month"
+category = "notes"
+split = "test"
+relevant = ["notes/home/budget-2024.md"]
+
+[[query]]
+id = "notes-oil-change"
+text = "when was the car's oil last changed"
+category = "notes"
+relevant = ["notes/home/car-maintenance.md"]
+
+[[query]]
+id = "notes-disk-full"
+text = "what to do when a server runs out of disk space"
+category = "notes"
+relevant = ["notes/work/runbook-disk-full.md"]
+
+[[query]]
+id = "notes-monstera"
+text = "how often to water the monstera"
+category = "notes"
+split = "test"
+relevant = ["notes/home/plant-care.md"]
+
+[[query]]
+id = "notes-vitamin-d"
+text = "what did the doctor say about vitamin D"
+category = "notes"
+relevant = ["notes/home/doctor-visit-2024-09.md"]
+
+[[query]]
+id = "notes-camping"
+text = "what to pack for a camping trip"
+category = "notes"
+relevant = ["notes/travel/camping-packing-list.md"]
+
+[[query]]
+id = "notes-vegan-soup"
+text = "quick vegan soup recipe"
+category = "notes"
+split = "test"
+relevant = ["notes/recipes/lentil-soup.md"]
+
+[[query]]
+id = "notes-k8s-rollback"
+text = "roll back a bad deployment in kubernetes"
+category = "notes"
+relevant = ["notes/learning/kubernetes-notes.md"]
+
+[[query]]
+id = "notes-mean-median"
+text = "difference between the mean and the median"
+category = "notes"
+relevant = ["notes/learning/statistics-refresher.md"]
+acceptable = ["projects/boltons/boltons/statsutils.py"]
+
+[[query]]
+id = "notes-interview"
+text = "feedback from the system design interview"
+category = "notes"
+split = "test"
+relevant = ["notes/work/interview-backend-candidate-2024-08.md"]
+
+# paraphrase: the note says it in other words
+
+[[query]]
+id = "para-double-charge"
+text = "customers were billed twice after clicking the button twice"
+category = "paraphrase"
+relevant = ["notes/work/2024-03-12-standup.md"]
+
+[[query]]
+id = "para-undo-commit"
+text = "take back the commit I just made but keep my edits"
+category = "paraphrase"
+relevant = ["notes/learning/git-cheatsheet.md"]
+
+[[query]]
+id = "para-behind-waterfall"
+text = "a place where you can stand behind falling water"
+category = "paraphrase"
+split = "test"
+relevant = ["notes/travel/iceland-ideas.md"]
+
+[[query]]
+id = "para-resolutions"
+text = "things I promised myself to do this year"
+category = "paraphrase"
+relevant = ["notes/journal/2025-01-02.md"]
+
+[[query]]
+id = "para-meetings"
+text = "we agreed to protect time for deep work in the middle of the week"
+category = "paraphrase"
+relevant = ["notes/work/2024-09-30-retro.md"]
+
+[[query]]
+id = "para-bike-theft"
+text = "money back from the insurer after my bicycle was taken"
+category = "paraphrase"
+split = "test"
+relevant = ["notes/home/insurance-claim-bike.md"]
+
+[[query]]
+id = "para-borrow"
+text = "why the compiler says a value does not live long enough"
+category = "paraphrase"
+relevant = ["notes/learning/rust-ownership.md"]
+
+[[query]]
+id = "para-relocation"
+text = "tasks before relocating to another flat"
+category = "paraphrase"
+relevant = ["notes/home/moving-checklist.md"]
+
+# image-text: pictures whose content is mostly text
+
+[[query]]
+id = "imgtext-receipt"
+text = "grocery store receipt"
+category = "image-text"
+relevant = ["scans/IMG_7731.jpg"]
+
+[[query]]
+id = "imgtext-wifi"
+text = "what is the guest wifi password"
+category = "image-text"
+relevant = ["photos/2024/IMG_5590.jpg"]
+acceptable = ["notes/home/router-and-wifi.md"]
+
+[[query]]
+id = "imgtext-roadmap"
+text = "slide with the engineering roadmap for the third quarter"
+category = "image-text"
+split = "test"
+relevant = ["slides/q3-planning-deck-slide3.png"]
+
+[[query]]
+id = "imgtext-chart"
+text = "bar chart of monthly active users"
+category = "image-text"
+relevant = ["screenshots/Screenshot 2024-07-03 at 16.40.05.png"]
+
+[[query]]
+id = "imgtext-terminal"
+text = "terminal output showing a certificate has expired"
+category = "image-text"
+relevant = ["screenshots/Screenshot 2024-05-07 at 09.14.22.png"]
+acceptable = ["notes/work/incident-2024-05-07-api-outage.md"]
+
+[[query]]
+id = "imgtext-boarding"
+text = "boarding pass for the flight to Tokyo"
+category = "image-text"
+split = "test"
+relevant = ["scans/boarding-pass.png"]
+acceptable = ["notes/travel/japan-itinerary-2025.md"]
+
+[[query]]
+id = "imgtext-architecture"
+text = "diagram of the services, the queue and the database"
+category = "image-text"
+relevant = ["diagrams/architecture-v2.png"]
+
+# video-moment: the right video and the right segment
+
+[[query]]
+id = "video-crowd"
+text = "crowd of people watching a rocket launch from a field"
+category = "video-moment"
+relevant = [{ path = "videos/VID_20050726_launch.mp4", seconds = [15, 25] }]
+
+[[query]]
+id = "video-onboard"
+text = "view from a camera mounted on the rocket during the climb"
+category = "video-moment"
+relevant = [{ path = "videos/VID_20050726_launch.mp4", seconds = [35, 50] }]
+
+[[query]]
+id = "video-cartoon-turtle"
+text = "cartoon turtle wearing a hat and a bow tie"
+category = "video-moment"
+split = "test"
+relevant = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [0, 30] }]
+acceptable = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [30, 80] }]
+
+[[query]]
+id = "video-mission-control"
+text = "control room full of computer screens"
+category = "video-moment"
+relevant = [{ path = "videos/iss_pass_2023-08-30.mp4", seconds = [0, 37] }]
+
+[[query]]
+id = "video-hurricane"
+text = "video of a hurricane seen from orbit"
+category = "video-moment"
+relevant = [{ path = "videos/iss_pass_2023-08-30.mp4", seconds = [60, 90] }]
+acceptable = [{ path = "videos/iss_pass_2023-08-30.mp4", seconds = [38, 60] }, "pictures/space/iss028e031903.jpg"]
+
+[[query]]
+id = "video-old-street"
+text = "horse-drawn carriages and streetcars in an old black and white film"
+category = "video-moment"
+split = "test"
+relevant = ["videos/market_street.mp4"]
+
+[[query]]
+id = "video-traffic-1950s"
+text = "1950s cars driving past a traffic officer"
+category = "video-moment"
+relevant = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [105, 120] }]
+acceptable = ["videos/market_street.mp4"]
+
+# speech: what is said in recordings and soundtracks
+
+[[query]]
+id = "speech-bread"
+text = "spoken advice on how much salt and yeast to put in bread dough"
+category = "speech"
+relevant = ["audio/audiobooks/us_navy_cookbook_13.mp3"]
+acceptable = ["notes/recipes/sourdough-bread.md"]
+
+[[query]]
+id = "speech-fire-attack"
+text = "recording about using fire to attack an enemy"
+category = "speech"
+relevant = ["audio/audiobooks/art_of_war_12.mp3"]
+acceptable = ["notes/books/the-art-of-war.md"]
+
+[[query]]
+id = "speech-moon"
+text = "someone reading about the moon as the earth's companion"
+category = "speech"
+split = "test"
+relevant = ["audio/audiobooks/sun_moon_and_stars_06.mp3"]
+
+[[query]]
+id = "speech-countdown"
+text = "countdown to liftoff of the space shuttle"
+category = "speech"
+relevant = [{ path = "videos/VID_20050726_launch.mp4", seconds = [0, 25] }]
+
+[[query]]
+id = "speech-turtle-song"
+text = "song about a turtle named Bert who ducks and covers"
+category = "speech"
+relevant = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [0, 40] }]
+
+[[query]]
+id = "speech-atomic-bomb"
+text = "narrator telling children the atomic bomb is dangerous"
+category = "speech"
+split = "test"
+relevant = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [82, 96] }]
+
+# audio: sounds and music
+
+[[query]]
+id = "audio-rain"
+text = "rain falling"
+category = "audio"
+relevant = ["audio/field-recordings/rec_010.mp3"]
+acceptable = ["audio/field-recordings/rec_009.mp3"]
+
+[[query]]
+id = "audio-thunder"
+text = "thunder rumbling in a storm"
+category = "audio"
+relevant = ["audio/field-recordings/rec_009.mp3"]
+acceptable = ["audio/field-recordings/rec_010.mp3", "audio/field-recordings/rec_002.mp3"]
+
+[[query]]
+id = "audio-waves"
+text = "ocean waves on a beach"
+category = "audio"
+split = "test"
+relevant = ["audio/field-recordings/rec_012.mp3"]
+
+[[query]]
+id = "audio-stream"
+text = "water running in a small creek"
+category = "audio"
+relevant = ["audio/field-recordings/rec_001.mp3"]
+acceptable = ["audio/field-recordings/rec_012.mp3"]
+
+[[query]]
+id = "audio-wolf"
+text = "a wolf howling"
+category = "audio"
+relevant = ["audio/field-recordings/rec_013.mp3"]
+acceptable = ["audio/field-recordings/rec_011.mp3"]
+
+[[query]]
+id = "audio-whale"
+text = "whale song"
+category = "audio"
+split = "test"
+relevant = ["audio/field-recordings/rec_004.mp3"]
+
+[[query]]
+id = "audio-siren"
+text = "emergency vehicle siren"
+category = "audio"
+relevant = ["audio/field-recordings/rec_005.mp3"]
+
+[[query]]
+id = "audio-helicopter"
+text = "helicopter flying overhead"
+category = "audio"
+relevant = ["audio/field-recordings/rec_008.mp3"]
+
+[[query]]
+id = "audio-crickets"
+text = "insects chirping at night"
+category = "audio"
+split = "test"
+relevant = ["audio/field-recordings/rec_006.mp3"]
+
+[[query]]
+id = "audio-bugle"
+text = "bugle call"
+category = "audio"
+relevant = ["audio/field-recordings/rec_007.mp3"]
+acceptable = ["music/german_fidelity_march_1914.mp3"]
+
+[[query]]
+id = "audio-harmonica"
+text = "someone playing the harmonica"
+category = "audio"
+relevant = ["audio/field-recordings/rec_003.mp3"]
+
+[[query]]
+id = "audio-cannon"
+text = "a cannon being fired"
+category = "audio"
+split = "test"
+relevant = ["audio/field-recordings/rec_002.mp3"]
+acceptable = ["audio/field-recordings/rec_009.mp3"]
+
+[[query]]
+id = "audio-piano"
+text = "calm solo piano music"
+category = "audio"
+relevant = ["music/chopin_nocturne_op37_no2.mp3"]
+
+[[query]]
+id = "audio-march"
+text = "military band playing a march"
+category = "audio"
+relevant = ["music/german_fidelity_march_1914.mp3"]
+acceptable = ["audio/field-recordings/rec_007.mp3"]
+
+# cross-type: the answer exists as more than one type
+
+[[query]]
+id = "cross-expired-cert"
+text = "the outage caused by an expired TLS certificate"
+category = "cross-type"
+relevant = ["notes/work/incident-2024-05-07-api-outage.md", "screenshots/Screenshot 2024-05-07 at 09.14.22.png"]
+
+[[query]]
+id = "cross-bread"
+text = "how to make bread"
+category = "cross-type"
+relevant = ["notes/recipes/sourdough-bread.md", "audio/audiobooks/us_navy_cookbook_13.mp3"]
+
+[[query]]
+id = "cross-tokyo"
+text = "the trip to Tokyo in April"
+category = "cross-type"
+split = "test"
+relevant = ["notes/travel/japan-itinerary-2025.md", "scans/boarding-pass.png"]
+
+[[query]]
+id = "cross-roadmap"
+text = "plans to migrate billing to Postgres 16"
+category = "cross-type"
+relevant = ["notes/work/2024-03-12-standup.md", "slides/q3-planning-deck-slide3.png"]
+acceptable = ["diagrams/architecture-v2.png"]
+
+# like: find files similar to a given file
+
+[[query]]
+id = "like-curry"
+like = "notes/recipes/chicken-curry.md"
+category = "like"
+relevant = [
+  "notes/recipes/lentil-soup.md",
+  "notes/recipes/banana-pancakes.md",
+  "notes/recipes/sourdough-bread.md",
+  "notes/recipes/cold-brew-coffee.md",
+]
+
+[[query]]
+id = "like-request"
+like = "projects/express/lib/request.js"
+category = "like"
+relevant = ["projects/express/lib/response.js", "projects/express/lib/application.js"]
+acceptable = ["projects/express/lib/express.js", "projects/express/lib/utils.js", "projects/express/lib/view.js"]
+
+[[query]]
+id = "like-rain"
+like = "audio/field-recordings/rec_010.mp3"
+category = "like"
+split = "test"
+relevant = ["audio/field-recordings/rec_001.mp3", "audio/field-recordings/rec_012.mp3"]
+acceptable = ["audio/field-recordings/rec_009.mp3"]
+
+# no-answer: nothing in the collection fits
+
+[[query]]
+id = "none-chess"
+text = "chess opening theory for the Sicilian defence"
+category = "no-answer"
+
+[[query]]
+id = "none-knitting"
+text = "knitting pattern for a wool scarf"
+category = "no-answer"
+
+[[query]]
+id = "none-qubits"
+text = "error correction for qubits in a quantum computer"
+category = "no-answer"
+split = "test"
+
+[[query]]
+id = "none-sushi"
+text = "how to roll sushi at home"
+category = "no-answer"
+
+[[query]]
+id = "none-violin"
+text = "a violin concerto"
+category = "no-answer"
+
+[[query]]
+id = "none-parking"
+text = "appeal a parking ticket"
+category = "no-answer"
+split = "test"
+
+# image-content: what a photo shows
+
+[[query]]
+id = "img-dogs-snow"
+text = "dogs playing in the snow"
+category = "image-content"
+relevant = ["photos/2024/IMG_2214.jpg"]
+
+[[query]]
+id = "img-cat-snow"
+text = "a cat on a leash rolling in the snow"
+category = "image-content"
+split = "test"
+relevant = ["photos/2024/IMG_2231.jpg"]
+
+[[query]]
+id = "img-dog-swim"
+text = "a dog swimming in a lake"
+category = "image-content"
+relevant = ["photos/2023/IMG_0871.jpg"]
+
+[[query]]
+id = "img-cat-sofa"
+text = "a cat asleep on the couch"
+category = "image-content"
+relevant = ["photos/2023/IMG_0412.jpg"]
+
+[[query]]
+id = "img-puppies"
+text = "a pile of sleeping puppies"
+category = "image-content"
+split = "test"
+relevant = ["photos/2025/IMG_8120.jpg"]
+
+[[query]]
+id = "img-bicycle"
+text = "a bicycle leaning against a wall on a cobblestone street"
+category = "image-content"
+relevant = ["photos/2023/IMG_1190.jpg"]
+acceptable = ["photos/2023/IMG_1192.jpg"]
+
+[[query]]
+id = "img-lighthouse"
+text = "lighthouse at sunset"
+category = "image-content"
+relevant = ["photos/2023/IMG_1544.jpg"]
+
+[[query]]
+id = "img-coconut"
+text = "a coconut lying on the sand"
+category = "image-content"
+split = "test"
+relevant = ["photos/2024/IMG_3305.jpg"]
+
+[[query]]
+id = "img-lake-reflection"
+text = "mountains reflected in a calm lake"
+category = "image-content"
+relevant = ["photos/2023/IMG_1710.jpg"]
+acceptable = ["photos/2023/IMG_1702.jpg"]
+
+[[query]]
+id = "img-dunes"
+text = "footprints across desert sand dunes"
+category = "image-content"
+relevant = ["photos/2023/IMG_1805.jpg"]
+
+[[query]]
+id = "img-elephants"
+text = "a herd of elephants crossing the grassland"
+category = "image-content"
+split = "test"
+relevant = ["photos/2025/IMG_8530.jpg"]
+
+[[query]]
+id = "img-sea-turtle"
+text = "a turtle resting on the beach"
+category = "image-content"
+relevant = ["photos/2024/IMG_3420.jpg"]
+
+[[query]]
+id = "img-jellyfish"
+text = "jellyfish in dark water"
+category = "image-content"
+relevant = ["photos/2024/IMG_5012.jpg"]
+
+[[query]]
+id = "img-bootprint"
+text = "a footprint in moon dust"
+category = "image-content"
+split = "test"
+relevant = ["pictures/space/as11-40-5880.jpg"]
+acceptable = ["pictures/space/as11-40-5931.jpg"]
+
+[[query]]
+id = "img-rover"
+text = "a robot vehicle on another planet"
+category = "image-content"
+relevant = ["pictures/space/PIA19808.jpg"]
+
+[[query]]
+id = "img-vr"
+text = "someone wearing a virtual reality headset"
+category = "image-content"
+relevant = ["pictures/space/jsc2018e087573.jpg"]
+
+[[query]]
+id = "img-hurricane"
+text = "photo of the eye of a hurricane taken from space"
+category = "image-content"
+split = "test"
+relevant = ["pictures/space/iss028e031903.jpg"]
+acceptable = [{ path = "videos/iss_pass_2023-08-30.mp4", seconds = [60, 90] }]
+
+[[query]]
+id = "img-rocket-pad"
+text = "a rocket standing on the launch pad"
+category = "image-content"
+relevant = ["pictures/space/artemis_ii_pad_01292026_13.jpg"]
+acceptable = [{ path = "videos/VID_20050726_launch.mp4", seconds = [0, 10] }]
+
+[[query]]
+id = "img-earth"
+text = "the whole planet Earth seen from space"
+category = "image-content"
+relevant = ["pictures/space/GSFC_20171208_Archive_e001386.jpg"]
+
+[[query]]
+id = "img-eagle"
+text = "an eagle with its beak wide open"
+category = "image-content"
+split = "test"
+relevant = ["photos/2025/IMG_8402.jpg"]
+
+[[query]]
+id = "cross-owl"
+text = "the owl we saw on the hike"
+category = "cross-type"
+relevant = ["notes/journal/2024-10-19.md", "photos/2024/IMG_4610.jpg"]
+
+[[query]]
+id = "cross-fireworks"
+text = "fireworks over the lake on the Fourth of July"
+category = "cross-type"
+split = "test"
+relevant = ["notes/journal/2024-07-04.md", "photos/2024/IMG_4402.jpg"]
+acceptable = ["notes/learning/photography-tips.md"]
+
+[[query]]
+id = "img-mtb"
+text = "riding a mountain bike on a forest trail"
+category = "image-content"
+relevant = ["photos/2023/IMG_1388.jpg"]
+acceptable = ["notes/travel/2023-utah-road-trip.md"]
+
+[[query]]
+id = "like-kitten"
+like = "photos/2025/IMG_8133.jpg"
+category = "like"
+relevant = ["photos/2023/IMG_0412.jpg", "photos/2024/IMG_2231.jpg"]
+acceptable = ["photos/2025/IMG_8120.jpg", "photos/2024/IMG_2214.jpg", "photos/2023/IMG_0871.jpg"]
+
+[[query]]
+id = "none-snowboard"
+text = "a snowboarder in the air over a jump"
+category = "no-answer"
+
+[[query]]
+id = "none-wedding"
+text = "a bride and groom at their wedding"
+category = "no-answer"
+split = "test"
