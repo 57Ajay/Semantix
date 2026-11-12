@@ -133,6 +133,14 @@ To measure your own machine and check that the results are correct:
 semantix benchmark
 ```
 
+## Search quality
+
+`semantix eval` runs a fixed collection of code, notes, photos, video and audio with 127
+queries whose answers are known. On it, the right answer is the first result for 76% of the
+queries and in the top 5 for 92%. Photos, video moments and spoken content are found almost
+every time; short sound recordings are the weakest part. The details, and how to measure your
+own changes, are in [docs.md](docs.md#measuring-search-quality).
+
 ## Documentation
 
 [docs.md](docs.md) covers every command and setting, the ignore rules, how sync and search

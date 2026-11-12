@@ -693,13 +693,15 @@ correct answers are known, and reports how often and how high the right answer i
 Use it before and after any change to chunking, scoring, settings or the model, and when
 comparing devices or number formats.
 
-The first run downloads the standard eval set (about 20 MB) from the `eval` branch of the
-repository into `~/.semantix/eval/set`, so nobody who does not run it ever downloads it.
-`--update` fetches the newest version. The collection is embedded into a separate index under
+The first run downloads the standard eval set (about 17 MB) from the `eval` branch of the
+repository into `~/.semantix/eval/set`. The set lives on its own branch, so cloning or
+installing Semantix never downloads it. `--update` fetches the newest version. The collection is embedded into a separate index under
 `~/.semantix/eval/work`; your own index is never touched. On a 4-core CPU the first run takes
-about 40 minutes, most of it video. Later runs only embed what a setting change requires and
-reuse every query embedding, so changing a search-time option such as `--keyword-bonus`
-reruns in seconds without loading the model.
+about 18 minutes, more than half of it video. Later runs reuse every embedding, including the
+query embeddings, so changing a search-time option such as `--keyword-bonus` reruns in seconds
+without loading the model. A setting that changes what gets embedded starts from the closest
+earlier run and embeds again only the affected types: `index.chunk_chars` re-embeds text and
+code, `image.tokens` only images.
 
 Every run is saved as a JSON report in `~/.semantix/eval/reports`.
 
@@ -707,7 +709,7 @@ Every run is saved as a JSON report in `~/.semantix/eval/reports`.
 
 | Part | Contents |
 | --- | --- |
-| Code | 17 modules of boltons (Python), express (JavaScript) and cobra (Go), with their docs |
+| Code | boltons (17 Python modules), express (JavaScript) and cobra (Go), with their docs |
 | Notes | 36 short personal notes: work, home, recipes, travel, learning, a journal |
 | Images | Photos (CC0 or public domain), NASA pictures, and drawn screenshots, a receipt, a slide, a diagram, a boarding pass |
 | Video | A shuttle launch with commentary, a 1951 public-domain film, an ISS pass over a hurricane, a 1906 street film |
@@ -775,6 +777,69 @@ semantix eval --split dev --compare last --config index.chunk_chars=1200
 
 `--compare` prints the change per category and lists the queries that moved, with their old
 and new rank. It also notes any difference in settings or set version between the two runs.
+
+### Results
+
+Standard set version 2 on an Intel Xeon 2.1 GHz with 4 threads, float32, default settings.
+The full report is in `results/` on the `eval` branch.
+
+| Category | Queries | Top 1 | Recall@5 | MRR |
+| --- | --- | --- | --- | --- |
+| code-intent | 20 | 55% | 90% | 67% |
+| code-identifier | 6 | 67% | 100% | 83% |
+| docs | 6 | 67% | 100% | 81% |
+| notes | 12 | 92% | 100% | 96% |
+| paraphrase | 8 | 88% | 100% | 94% |
+| image-content | 23 | 96% | 100% | 98% |
+| image-text | 7 | 71% | 100% | 86% |
+| video-moment | 7 | 100% | 100% | 100% |
+| speech | 6 | 100% | 100% | 100% |
+| audio | 14 | 29% | 57% | 42% |
+| cross-type | 6 | 100% | 100% | 100% |
+| like | 4 | 75% | 75% | 79% |
+| **all, hybrid** | 119 | **76%** | **92%** | **83%** |
+| all, vector only | 119 | 75% | 88% | 81% |
+| all, keyword only | 115 | 37% | 45% | 41% |
+
+The first run embedded 158 files into 860 parts in about 18 minutes. Every later run of the
+same settings takes about 15 seconds.
+
+What these show:
+
+- **Images, video moments and speech are close to perfect.** A photo is found from a plain
+  description, the right 30-second video segment is found for a scene, and recordings are
+  found by what is said in them, including the commentary and narration in video soundtracks.
+- **Sounds are the weak spot.** Short field recordings are confused with each other: a wolf
+  howl ranks below a siren, rain below thunder and a stream. Writing "the sound of rain"
+  instead of "rain falling" made no difference (MRR 43% and 42%). When all types are searched,
+  8 of the 14 sound queries rank lower than with `--type audio`, because photos of the same
+  scene compete. Use `--type audio` when looking for a sound.
+- **Code is found, but often not first.** The right function is in the top 5 for 90% of the
+  plain-language code queries, first for 55%. Most misses rank a neighbouring function or the
+  project's documentation about the same feature first, which is often a reasonable answer.
+- **Hybrid beats vector-only mostly on code**: MRR 67% against 59% for code-intent and 83%
+  against 66% for exact names. Keyword-only search cannot find media at all.
+- **A low top score really does mean "probably nothing here".** The best result of the eight
+  queries with no answer scored between 0.02 and 0.12; every correct first result scored at
+  least 0.13. That gap is from only eight queries, so treat 0.12 as a rough guide for
+  `--min-score`, not a rule.
+
+### What the first experiments showed
+
+| Change | Overall MRR | Recall@5 | Notes |
+| --- | --- | --- | --- |
+| Default (calibrated, keyword bonus 0.08) | 83.0% | 92.4% | |
+| Without score calibration | 81.1% | 86.1% | Exact names 100% instead of 83%, paraphrases 75% instead of 94% |
+| Keyword bonus 0 | 81.0% | 88.2% | The same as vector only |
+| Keyword bonus 0.04 | 82.7% | 91.6% | |
+| Keyword bonus 0.12 | 83.3% | 92.4% | One query better than the default |
+| Keyword bonus 0.24 | 82.5% | 91.2% | |
+
+- **Calibration is worth keeping, but it costs exact matches.** Subtracting each part's
+  similarity to unrelated queries helps prose a lot and hurts code identifiers. Calibrating
+  per type, or weighting keyword matches more when the query looks like an identifier, are
+  the obvious next experiments.
+- **The keyword bonus is flat between 0.08 and 0.16.** The default stays.
 
 ### Writing your own set
 
@@ -874,6 +939,8 @@ any change to the model path.
 - **Vectors are searched exactly, in memory.** That is fast up to a few hundred thousand parts
   (1 GB of memory per 350,000 parts at 768 dimensions) and has not been tested beyond small
   collections.
-- **Score thresholds are rough.** The 0.05 and 0.10 guides come from small test collections.
+- **Score thresholds are rough.** On the standard eval set the best result of a query with no
+  answer never scored above 0.12, and every correct first result scored at least 0.13, but
+  that comes from only eight such queries. See [measuring search quality](#measuring-search-quality).
 - **A long video is saved only when it completes**, so interrupting one loses that file's
   progress.
