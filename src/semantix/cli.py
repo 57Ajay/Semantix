@@ -1066,6 +1066,214 @@ def benchmark(
         raise typer.Exit(1)
 
 
+def percent(value: float | None) -> str:
+    return "–" if value is None else f"{value * 100:.0f}%"
+
+
+def render_eval(report: dict[str, Any]) -> None:
+    from .evaluate import METRICS
+
+    sync = report["sync"]
+    console.print(
+        f"\n[bold]{report['set']['name']}[/] v{report['set']['version']}  ·  {report['device']} {report['dtype']}  ·  "
+        f"{sync['parts']} parts from {sync['files']} files  ·  {report['split']} queries"
+    )
+    if sync["embedded"]:
+        console.print(f"[dim]Embedded {sync['embedded']} file(s) in {human_time(sync['seconds'])}[/]")
+    for entry in sync["errors"]:
+        console.print(f"[red]failed:[/] {entry['path']}  {entry['error']}")
+    for mode, summary in report["modes"].items():
+        table = Table(box=None, padding=(0, 2), header_style="bold", title_justify="left")
+        table.add_column(mode, no_wrap=True)
+        for label in ("Queries", "Top 1", "Recall@5", "Recall@10", "MRR", "nDCG@10"):
+            table.add_column(label, justify="right", no_wrap=True)
+        for name, row in sorted(summary["categories"].items()):
+            table.add_row(name, str(row["queries"]), *(percent(row[metric]) for metric in METRICS))
+        overall = summary["overall"]
+        table.add_row(
+            "[bold]all[/]", f"[bold]{overall['queries']}[/]",
+            *(f"[bold]{percent(overall[metric])}[/]" for metric in METRICS),
+        )
+        console.print()
+        console.print(table)
+        details = []
+        if overall["located_queries"]:
+            details.append(f"right segment or lines for {percent(overall['located'])} of {overall['located_queries']} queries")
+        if details:
+            console.print("[dim]" + "  ·  ".join(details) + "[/]")
+        separation = summary["no_answer"]
+        if separation:
+            console.print(
+                f"[dim]No-answer queries: a minimum score of {separation['threshold']} keeps or drops the top result "
+                f"correctly for {separation['correct']} of {separation['total']} queries[/]"
+            )
+        mixed = summary["mixed_types"]
+        if mixed:
+            console.print(
+                f"[dim]Searching all types instead of the answer's own type: MRR {percent(mixed['mrr_all_types'])} "
+                f"instead of {percent(mixed['mrr_own_type'])}, {len(mixed['worse'])} of {mixed['queries']} queries ranked lower[/]"
+            )
+        misses = [record for record in report["queries"][mode] if record["answered"] and (record["rank"] or 99) > 5]
+        if misses:
+            console.print(f"[yellow]Not in the top 5 ({len(misses)}):[/]")
+            for record in misses:
+                rank = f"rank {record['rank']}" if record["rank"] else "not found"
+                console.print(
+                    f"  {record['id']}  [dim]{rank}, expected {', '.join(record['expected'])}; got {', '.join(record['top'])}[/]"
+                )
+
+
+def render_comparison(comparison: dict[str, Any], against: Path) -> None:
+    from .evaluate import METRICS, better
+
+    console.print(f"\n[bold]Compared with[/] {display_path(str(against))}")
+    for note in comparison["notes"]:
+        console.print(f"[dim]  {note}[/]")
+
+    for mode, entry in comparison["modes"].items():
+        table = Table(box=None, padding=(0, 2), header_style="bold")
+        table.add_column(mode, no_wrap=True)
+        for label in ("Top 1", "Recall@5", "Recall@10", "MRR", "nDCG@10"):
+            table.add_column(label, justify="right", no_wrap=True)
+        for name, deltas in entry["deltas"].items():
+            cells = []
+            for metric in METRICS:
+                delta = deltas[metric]
+                if delta is None or abs(delta) < 0.0005:
+                    cells.append("[dim]·[/]")
+                else:
+                    cells.append(f"[{'green' if delta > 0 else 'red'}]{delta * 100:+.1f}[/]")
+            table.add_row(f"[bold]{name}[/]" if name == "overall" else name, *cells)
+        console.print(table)
+        for label, style, group in (
+            ("Better", "green", [item for item in entry["moved"] if better(item)]),
+            ("Worse", "red", [item for item in entry["moved"] if not better(item)]),
+        ):
+            if group:
+                shown = ", ".join(f"{item['id']} ({item['before'] or '–'} → {item['after'] or '–'})" for item in group)
+                console.print(f"[{style}]{label}:[/] {shown}")
+
+
+def render_unjudged(report: dict[str, Any]) -> None:
+    seen: dict[str, dict[str, Any]] = {}
+    for records in report["queries"].values():
+        for record in records:
+            entry = seen.setdefault(record["id"], {"hits": {}})
+            for item in record["unjudged"]:
+                entry["hits"].setdefault(item["hit"], item)
+    waiting = {query_id: entry for query_id, entry in seen.items() if entry["hits"]}
+    if not waiting:
+        console.print("\nEvery top result has a grade.")
+        return
+    console.print(f"\n[bold]Top results with no grade yet[/] ({sum(len(e['hits']) for e in waiting.values())})")
+    for query_id, entry in waiting.items():
+        console.print(f"[bold]{query_id}[/]")
+        for label, item in sorted(entry["hits"].items(), key=lambda pair: pair[1]["rank"]):
+            snippet = " ".join(item["text"].split())[:110]
+            console.print(f"  {item['rank']}. {label}  [dim]{snippet}[/]")
+    console.print("[dim]Add each to the query's acceptable or not_relevant list in queries.toml.[/]")
+
+
+@app.command("eval")
+def evaluate_command(
+    set_dir: Annotated[Path | None, typer.Argument(help="An eval set folder; by default the standard set")] = None,
+    mode: Annotated[str, typer.Option(help="hybrid, vector, keyword or all")] = "hybrid",
+    split: Annotated[str, typer.Option(help="dev, test or all")] = "all",
+    setting: Annotated[list[str] | None, typer.Option("--config", help="Change a setting for this run, as key=value")] = None,
+    device: Annotated[str, typer.Option(help="auto, cuda, mps or cpu")] = "auto",
+    keyword_bonus: Annotated[float | None, typer.Option("--keyword-bonus", help="Weight of keyword matches in hybrid mode")] = None,
+    calibration: Annotated[bool, typer.Option("--calibration/--no-calibration", help="Calibrate scores across types")] = True,
+    against: Annotated[str | None, typer.Option("--compare", help="An earlier report, or last for the previous run")] = None,
+    unjudged: Annotated[bool, typer.Option("--unjudged", help="List top results that have no grade yet")] = False,
+    update: Annotated[bool, typer.Option("--update", help="Download the newest standard set first")] = False,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="Also write the JSON report here")] = None,
+) -> None:
+    """Measure search quality on a fixed collection with known answers."""
+    from . import evaluate
+    from .model import ModelError
+
+    paths = get_paths().ensure()
+    modes = evaluate.MODES if mode == "all" else (mode,)
+    if any(name not in evaluate.MODES for name in modes):
+        raise fail("--mode must be hybrid, vector, keyword or all")
+    if split not in ("all", *evaluate.SPLITS):
+        raise fail("--split must be dev, test or all")
+    overrides: dict[str, Any] = {}
+    for item in setting or []:
+        key, separator, value = item.partition("=")
+        if not separator:
+            raise fail(f"--config expects key=value, got {item!r}")
+        overrides[key.strip()] = value.strip()
+    try:
+        Config(overrides)
+    except ConfigError as error:
+        raise fail(str(error)) from None
+    eval_home = paths.home / "eval"
+    try:
+        if set_dir is not None:
+            eval_set = evaluate.load_set(set_dir)
+        else:
+            standard = eval_home / "set"
+            if update or not (standard / "set.toml").is_file():
+                console.print(f"Downloading the eval set from {evaluate.SET_SOURCE}…")
+                with console.status("Downloading…") as status:
+                    eval_set = evaluate.fetch_set(
+                        standard,
+                        lambda done, total: status.update(
+                            f"Downloading {human_bytes(done)}" + (f" of {human_bytes(total)}" if total else "") + "…"
+                        ),
+                    )
+            else:
+                eval_set = evaluate.load_set(standard)
+    except evaluate.EvalError as error:
+        raise fail(str(error)) from None
+    config = Config(overrides)
+    if not model_present(paths, config):
+        console.print(f"Downloading [bold]{config.get('model.id')}[/] (about 1.5 GB)…")
+        from .model import download
+
+        try:
+            download(config.get("model.id"), paths.models)
+        except Exception as error:
+            raise fail(f"download failed: {error}") from None
+    reports = eval_home / "reports"
+    previous = None
+    if against:
+        previous = evaluate.latest_report(reports, eval_set.name) if against == "last" else Path(against)
+        if previous is None or not previous.is_file():
+            raise fail("there is no earlier report to compare with" if against == "last" else f"{against} does not exist")
+    try:
+        with Progress(
+            SpinnerColumn(), TextColumn("{task.description}"), BarColumn(), TextColumn("{task.fields[detail]}"),
+            console=console, transient=True,
+        ) as bar:
+            task = bar.add_task("Eval: starting", total=None, detail="")
+
+            def on_progress(event: dict[str, Any]) -> None:
+                name = os.path.basename(event["path"]) if event.get("path") else ""
+                bar.update(
+                    task, description="Eval: embedding the collection", total=event["total"], completed=event["done"],
+                    detail=f"{event['files_done']}/{event['files_total']} {name}",
+                )
+
+            report = evaluate.run(
+                eval_set, eval_home, paths.models, overrides, device, modes, split, keyword_bonus, calibration,
+                say=lambda stage: bar.update(task, description=f"Eval: {stage}", total=None, detail=""),
+                progress=on_progress,
+            )
+    except (evaluate.EvalError, ModelError, RuntimeError) as error:
+        raise fail(str(error)) from None
+    saved = evaluate.save_report(report, reports)
+    render_eval(report)
+    if previous is not None:
+        render_comparison(evaluate.compare(json.loads(previous.read_text()), report), previous)
+    if unjudged:
+        render_unjudged(report)
+    if output is not None:
+        output.write_text(json.dumps(report, indent=2) + "\n")
+    console.print(f"\nReport written to [bold]{display_path(str(output or saved))}[/]")
+
+
 def show_config(config: Config) -> None:
     table = Table(box=None, padding=(0, 2), header_style="dim")
     table.add_column("Setting", no_wrap=True)

@@ -13,6 +13,7 @@
 - [Storage and privacy](#storage-and-privacy)
 - [Performance and memory](#performance-and-memory)
 - [Benchmark and GPU testing](#benchmark-and-gpu-testing)
+- [Measuring search quality](#measuring-search-quality)
 - [Architecture](#architecture)
 - [Development](#development)
 - [Limits and untested areas](#limits-and-untested-areas)
@@ -191,6 +192,24 @@ Measures embedding speed on this machine and checks the results. See
 | `--quick` | Same as `--workload small` |
 | `--text-batch N`, `--image-batch N` | Batch sizes to test instead of the device defaults |
 | `--output FILE`, `-o` | Where to write the JSON report |
+
+### `semantix eval [SET]`
+
+Measures search quality on a fixed collection with known answers. See
+[measuring search quality](#measuring-search-quality).
+
+| Option | Meaning |
+| --- | --- |
+| `--mode hybrid\|vector\|keyword\|all` | Search mode to measure (default hybrid) |
+| `--split dev\|test\|all` | Which queries to run (default all) |
+| `--config key=value` | Change a setting for this run only; repeatable |
+| `--keyword-bonus X` | Weight of keyword matches in hybrid mode (default 0.08) |
+| `--no-calibration` | Rank by raw similarity instead of calibrated scores |
+| `--compare FILE` | Compare with an earlier report; `last` means the previous run |
+| `--unjudged` | List top results that have no grade yet |
+| `--update` | Download the newest standard set before running |
+| `--device cuda\|mps\|cpu` | Run on a specific device |
+| `--output FILE`, `-o` | Also write the JSON report here |
 
 ### `semantix config`
 
@@ -511,6 +530,7 @@ directory instead; `semantix status --json` shows where.
 ├── ignore           global ignore rules
 ├── index/           semantix.db: files, parts, vectors and the keyword index
 ├── models/          the downloaded model
+├── eval/            the eval set, its embeddings and reports, once `semantix eval` has run
 ├── run/             socket and pid of the service
 └── logs/            service log
 ```
@@ -523,8 +543,9 @@ The text of every text part is stored in the index, for previews and keyword sea
 in mind before syncing directories with sensitive content, and note that secrets files are
 ignored by the built-in rules.
 
-The only network access is the model download during `semantix setup`. The service runs with
-Hugging Face's offline mode on and binds only a local socket.
+The only network access is the model download during `semantix setup`, and the eval set
+download the first time you run `semantix eval`. The service runs with Hugging Face's offline
+mode on and binds only a local socket.
 
 ## Performance and memory
 
@@ -660,6 +681,140 @@ allowed video and audio segments on every run. The same review found that audio 
 longer than 30 seconds were being cut to 30 by the audio processor; that is fixed too. The
 default 30-second audio segments were never affected.
 
+## Measuring search quality
+
+```bash
+semantix eval
+```
+
+The benchmark checks that the model runs correctly and how fast. `semantix eval` checks
+whether search finds the right things. It runs a fixed collection of files and queries whose
+correct answers are known, and reports how often and how high the right answer is ranked.
+Use it before and after any change to chunking, scoring, settings or the model, and when
+comparing devices or number formats.
+
+The first run downloads the standard eval set (about 20 MB) from the `eval` branch of the
+repository into `~/.semantix/eval/set`, so nobody who does not run it ever downloads it.
+`--update` fetches the newest version. The collection is embedded into a separate index under
+`~/.semantix/eval/work`; your own index is never touched. On a 4-core CPU the first run takes
+about 40 minutes, most of it video. Later runs only embed what a setting change requires and
+reuse every query embedding, so changing a search-time option such as `--keyword-bonus`
+reruns in seconds without loading the model.
+
+Every run is saved as a JSON report in `~/.semantix/eval/reports`.
+
+### The standard set
+
+| Part | Contents |
+| --- | --- |
+| Code | 17 modules of boltons (Python), express (JavaScript) and cobra (Go), with their docs |
+| Notes | 36 short personal notes: work, home, recipes, travel, learning, a journal |
+| Images | Photos (CC0 or public domain), NASA pictures, and drawn screenshots, a receipt, a slide, a diagram, a boarding pass |
+| Video | A shuttle launch with commentary, a 1951 public-domain film, an ISS pass over a hurricane, a 1906 street film |
+| Audio | 13 National Park Service sound recordings, three audiobook excerpts, two music pieces |
+
+It deliberately contains near misses: two budgets, a cat in the snow next to a dog in the
+snow, rain next to a stream and the ocean, a photo of a hurricane next to a video of one.
+Without them every method scores close to 100% and the set cannot tell them apart.
+
+The queries are grouped by what they test:
+
+| Category | What it tests |
+| --- | --- |
+| code-intent | A plain-language request finds the function that does it |
+| code-identifier | Exact names and error messages |
+| docs | Prose documentation inside the projects |
+| notes | Notes found by their topic |
+| paraphrase | The note says the same thing in other words |
+| image-content | What a photo shows |
+| image-text | Text inside a picture: receipt, slide, screenshot, chart |
+| video-moment | The right video and the right segment |
+| speech | What is said in audiobooks and video soundtracks |
+| audio | Sounds and music |
+| cross-type | The answer exists as two types, for example a note and a screenshot |
+| like | `--like` finds similar files |
+| no-answer | Nothing in the collection fits |
+
+Queries are split into `dev` and `test`. Tune with `--split dev` and look at `test` only
+before keeping a change, so the set does not end up tuned to itself.
+
+### How results are scored
+
+A result matches an answer when it is the same file and, if the answer gives a line range or
+a time range, the result's part overlaps it. An answer is graded `relevant` (the answer) or
+`acceptable` (also fine, counts half and is never a miss); `not_relevant` records that a
+result was checked and is wrong.
+
+| Column | Meaning |
+| --- | --- |
+| Top 1 | Share of queries whose first result is a relevant answer |
+| Recall@5, Recall@10 | Share of the relevant answers found in the first 5 or 10 results |
+| MRR | Mean of 1 / rank of the first relevant answer, 0 if it is not in the first 10 |
+| nDCG@10 | Ranking quality of the first 10, with acceptable answers counting half |
+
+Below each table:
+
+- **Right segment or lines**: for queries whose answer has a range, how often the first result
+  from the right file is the right part of it.
+- **No-answer queries**: the score threshold that best separates queries that have an answer
+  from queries that do not, and how many it gets right. This shows whether `--min-score` can
+  hide nonsense results.
+- **Searching all types**: the same queries run once over everything and once restricted to
+  the answer's own type. The gap shows how much the score calibration between types costs.
+- **Not in the top 5**: each query that missed, with what was found instead.
+
+### Comparing changes
+
+```bash
+semantix eval --split dev
+```
+
+```bash
+semantix eval --split dev --compare last --config index.chunk_chars=1200
+```
+
+`--compare` prints the change per category and lists the queries that moved, with their old
+and new rank. It also notes any difference in settings or set version between the two runs.
+
+### Writing your own set
+
+An eval set is a folder:
+
+```
+my-set/
+├── set.toml        name = "my-set", version = "1"
+├── queries.toml
+└── corpus/         the files to search
+```
+
+```toml
+[[query]]
+id = "retry-backoff"
+text = "retry a request with exponential backoff"
+category = "code"
+split = "dev"
+relevant = [{ path = "src/http.py", lines = [120, 160] }]
+acceptable = ["docs/networking.md"]
+not_relevant = ["src/queue.py"]
+
+[[query]]
+id = "launch-crowd"
+text = "people watching the launch"
+category = "video"
+relevant = [{ path = "videos/launch.mp4", seconds = [15, 25] }]
+
+[[query]]
+id = "similar-to-curry"
+like = "notes/curry.md"
+category = "like"
+relevant = ["notes/soup.md"]
+```
+
+Paths are relative to `corpus/`. A query without any `relevant` answer is a no-answer query.
+Run it with `semantix eval my-set`. After the first run, `--unjudged` lists the top results
+that have no grade yet; grading them prevents a correct result from counting as a miss just
+because nobody graded it.
+
 ## Architecture
 
 | Module | Role |
@@ -678,6 +833,7 @@ default 30-second audio segments were never affected.
 | `config.py`, `paths.py` | Settings and file locations |
 | `autostart.py` | systemd and launchd integration |
 | `benchmark.py` | The benchmark: correctness check, timings, real sync and search |
+| `evaluate.py` | The eval command: eval sets, scoring, reports and comparisons |
 
 The CLI and the service exchange one JSON object per line. A request is `{"op": ..., "args":
 ...}`; the service answers with zero or more progress events and a final `{"ok": true,
@@ -699,6 +855,9 @@ uv run ruff check src tests
 ```
 
 The tests use a small fake embedder, so they run in about a second and do not need the model.
+That also means they cannot tell whether search got better or worse. `semantix eval` is the
+acceptance test for any change to chunking, scoring or settings, and `semantix benchmark` for
+any change to the model path.
 
 ## Limits and untested areas
 

@@ -96,6 +96,7 @@ moved or deleted, with a time estimate, before doing any work.
 | `semantix autostart enable` / `disable` | Start the service at login |
 | `semantix config` | Show or change settings |
 | `semantix benchmark` | Measure speed on this machine and verify the results |
+| `semantix eval` | Measure search quality on a fixed collection with known answers |
 
 ## How it works
 

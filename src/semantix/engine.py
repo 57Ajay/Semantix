@@ -170,6 +170,8 @@ class Engine:
         self.sync_lock = threading.Lock()
         self.started = time.time()
         self.job: dict[str, Any] | None = None
+        self.keyword_bonus = KEYWORD_BONUS
+        self.calibrate = True
         self._reconcile_index()
 
     def close(self) -> None:
@@ -959,7 +961,7 @@ class Engine:
         scored: dict[int, tuple[float, float]] = {}
         keyword_hits: list[tuple[int, float]] = []
         primary = code_query = None
-        calibrate = True
+        calibrate = self.calibrate
         if like:
             primary, _kind = self._embed_like(like)
             mode = "vector"
@@ -985,7 +987,7 @@ class Engine:
             final = {chunk_id: None for chunk_id in ranked}
         else:
             final = {
-                chunk_id: score + KEYWORD_BONUS * coverage.get(chunk_id, 0.0) for chunk_id, (score, _raw) in scored.items()
+                chunk_id: score + self.keyword_bonus * coverage.get(chunk_id, 0.0) for chunk_id, (score, _raw) in scored.items()
             }
             ranked = sorted(final, key=lambda chunk_id: -final[chunk_id])
 
