@@ -1083,9 +1083,9 @@ def render_eval(report: dict[str, Any]) -> None:
     for entry in sync["errors"]:
         console.print(f"[red]failed:[/] {entry['path']}  {entry['error']}")
     for mode, summary in report["modes"].items():
-        table = Table(box=None, padding=(0, 2), header_style="bold", title_justify="left")
+        table = Table(box=None, padding=(0, 1), header_style="bold")
         table.add_column(mode, no_wrap=True)
-        for label in ("Queries", "Top 1", "Recall@5", "Recall@10", "MRR", "nDCG@10"):
+        for label in ("Queries", "Top 1", "R@5", "R@10", "MRR", "nDCG"):
             table.add_column(label, justify="right", no_wrap=True)
         for name, row in sorted(summary["categories"].items()):
             table.add_row(name, str(row["queries"]), *(percent(row[metric]) for metric in METRICS))
@@ -1131,9 +1131,9 @@ def render_comparison(comparison: dict[str, Any], against: Path) -> None:
         console.print(f"[dim]  {note}[/]")
 
     for mode, entry in comparison["modes"].items():
-        table = Table(box=None, padding=(0, 2), header_style="bold")
+        table = Table(box=None, padding=(0, 1), header_style="bold")
         table.add_column(mode, no_wrap=True)
-        for label in ("Top 1", "Recall@5", "Recall@10", "MRR", "nDCG@10"):
+        for label in ("Top 1", "R@5", "R@10", "MRR", "nDCG"):
             table.add_column(label, justify="right", no_wrap=True)
         for name, deltas in entry["deltas"].items():
             cells = []
