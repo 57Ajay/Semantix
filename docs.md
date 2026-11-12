@@ -836,6 +836,7 @@ What these show:
 | Keyword bonus 0.24 | 82.5% | 91.2% | |
 | `index.chunk_chars` 800 | 82.4% | 89.9% | 1,533 parts instead of 860; docs better, code and `--like` worse |
 | `index.chunk_chars` 2400 | 83.9% | 92.4% | 640 parts; 8 of the 9 queries that moved went up, on both splits |
+| `model.dtype` bfloat16 | 83.2% | 92.4% | Whole set embedded in 8 minutes instead of 18; six queries moved by one or two places |
 
 - **Calibration is worth keeping, but it costs exact matches.** Subtracting each part's
   similarity to unrelated queries helps prose a lot and hurts code identifiers. Calibrating
@@ -848,6 +849,11 @@ What these show:
   evidence alone; sizes between 2,000 and 3,200, ideally with structure-aware chunking for
   code, are worth measuring next. Each of these runs re-embedded only text and code and took
   about 4 to 5 minutes.
+- **bfloat16 gives the same search quality as float32 on a CPU that supports it.** On this
+  Xeon with AVX512-BF16 it embedded everything 2.2 times faster with no measurable loss.
+  `model.dtype = auto` still picks float32 on every CPU, because on CPUs without those
+  instructions bfloat16 is three times slower. Choosing bfloat16 automatically when the CPU
+  has AVX512-BF16 or AMX is supported by this result.
 
 ### Writing your own set
 
