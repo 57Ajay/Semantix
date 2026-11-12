@@ -834,12 +834,20 @@ What these show:
 | Keyword bonus 0.04 | 82.7% | 91.6% | |
 | Keyword bonus 0.12 | 83.3% | 92.4% | One query better than the default |
 | Keyword bonus 0.24 | 82.5% | 91.2% | |
+| `index.chunk_chars` 800 | 82.4% | 89.9% | 1,533 parts instead of 860; docs better, code and `--like` worse |
+| `index.chunk_chars` 2400 | 83.9% | 92.4% | 640 parts; 8 of the 9 queries that moved went up, on both splits |
 
 - **Calibration is worth keeping, but it costs exact matches.** Subtracting each part's
   similarity to unrelated queries helps prose a lot and hurts code identifiers. Calibrating
   per type, or weighting keyword matches more when the query looks like an identifier, are
   the obvious next experiments.
 - **The keyword bonus is flat between 0.08 and 0.16.** The default stays.
+- **Larger text parts did slightly better, smaller ones slightly worse.** At 2,400 characters
+  MRR rose by about one query's worth on both the dev and the test split, with a quarter
+  fewer parts to store and search. The gain is too small to change the default on this
+  evidence alone; sizes between 2,000 and 3,200, ideally with structure-aware chunking for
+  code, are worth measuring next. Each of these runs re-embedded only text and code and took
+  about 4 to 5 minutes.
 
 ### Writing your own set
 
