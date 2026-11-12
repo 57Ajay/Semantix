@@ -373,6 +373,24 @@ note = "resized to at most 1024 pixels"
 sha256 = "e3e7410050c4525303073558ae8e525a1695f26f238f0304ec73507621f34968"
 
 [[source]]
+path = "photos/2025/IMG_8811.jpg"
+origin = "https://commons.wikimedia.org/wiki/File:Close-up_of_Woman_Holding_Coffee_Cup_at_Cafe_(28217840617).jpg"
+author = "Chevanon Photography"
+licence = "CC0"
+shows = "milk being poured into a cup of coffee, making latte art"
+note = "resized to at most 1024 pixels"
+sha256 = "87edbda67e757b2386919859b0129ea9f76c3c2b6daf114d23c277e1b1936246"
+
+[[source]]
+path = "photos/2025/IMG_8790.jpg"
+origin = "https://commons.wikimedia.org/wiki/File:Loaf_of_sourdough_bread_cooling.jpg"
+author = "Nutrition, Food Safety &amp; Health"
+licence = "CC0"
+shows = "a sourdough loaf cooling on a wire rack"
+note = "resized to at most 1024 pixels"
+sha256 = "672062dd2bc82c39e2aa447d8ecd649267fe498dd4d16f83a6c996ecab793cec"
+
+[[source]]
 path = "audio/field-recordings/rec_001.mp3"
 origin = "https://www.nps.gov/subjects/sound/sounds-stream.htm"
 author = "U.S. National Park Service"

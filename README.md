@@ -20,7 +20,7 @@ for what the command reports and how to compare changes.
 | `corpus/` | The files that are searched |
 | `sources.toml` | Origin, author, licence and checksum of every file that came from elsewhere |
 | `licenses/` | Licence texts of the three code projects |
-| `results/` | Reports from reference runs |
+| `results/` | Reports from reference runs; `standard-v2-cpu-float32.json` is the baseline from a 4-core Xeon CPU |
 
 ## Changing the set
 

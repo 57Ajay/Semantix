@@ -5,6 +5,7 @@ id = "code-chunk-list"
 text = "split a list into groups of a fixed size"
 category = "code-intent"
 relevant = [{ path = "projects/boltons/boltons/iterutils.py", lines = [286, 306] }]
+acceptable = [{ path = "projects/boltons/boltons/iterutils.py", lines = [316, 360] }]
 
 [[query]]
 id = "code-nested-transform"
@@ -37,7 +38,10 @@ text = "cache that evicts the least recently used entry when it is full"
 category = "code-intent"
 split = "test"
 relevant = [{ path = "projects/boltons/boltons/cacheutils.py", lines = [331, 377] }]
-acceptable = ["notes/work/interview-backend-candidate-2024-08.md"]
+acceptable = [
+  { path = "projects/boltons/boltons/cacheutils.py", lines = [94, 330] },
+  "notes/work/interview-backend-candidate-2024-08.md",
+]
 
 [[query]]
 id = "code-atomic-write"
@@ -115,7 +119,10 @@ id = "code-exact-args"
 text = "require a command to be called with exactly two positional arguments"
 category = "code-intent"
 relevant = [{ path = "projects/cobra/args.go", lines = [94, 103] }]
-acceptable = ["projects/cobra/args.go"]
+acceptable = [
+  "projects/cobra/args.go",
+  { path = "projects/cobra/site/content/user_guide.md", lines = [436, 490] },
+]
 
 [[query]]
 id = "code-exclusive-flags"
@@ -123,14 +130,20 @@ text = "flags that are not allowed to be used together"
 category = "code-intent"
 split = "test"
 relevant = [{ path = "projects/cobra/flag_groups.go", lines = [65, 80] }]
-acceptable = ["projects/cobra/flag_groups.go"]
+acceptable = [
+  "projects/cobra/flag_groups.go",
+  { path = "projects/cobra/site/content/user_guide.md", lines = [333, 368] },
+]
 
 [[query]]
 id = "code-typo-suggestions"
 text = "suggest the closest command name when the user makes a typo"
 category = "code-intent"
 relevant = [{ path = "projects/cobra/command.go", lines = [863, 890] }]
-acceptable = [{ path = "projects/cobra/cobra.go", lines = [192, 224] }]
+acceptable = [
+  { path = "projects/cobra/cobra.go", lines = [192, 224] },
+  { path = "projects/cobra/site/content/user_guide.md", lines = [776, 827] },
+]
 
 [[query]]
 id = "code-man-pages"
@@ -146,12 +159,18 @@ id = "ident-multidict"
 text = "OrderedMultiDict"
 category = "code-identifier"
 relevant = [{ path = "projects/boltons/boltons/dictutils.py", lines = [86, 653] }]
+acceptable = [
+  { path = "projects/boltons/boltons/dictutils.py", lines = [30, 85] },
+]
 
 [[query]]
 id = "ident-required-together"
 text = "MarkFlagsRequiredTogether"
 category = "code-identifier"
 relevant = [{ path = "projects/cobra/flag_groups.go", lines = [33, 48] }]
+acceptable = [
+  { path = "projects/cobra/site/content/user_guide.md", lines = [333, 346] },
+]
 
 [[query]]
 id = "ident-sendfile"
@@ -180,6 +199,9 @@ split = "test"
 relevant = [{ path = "projects/cobra/args.go", lines = [94, 103] }]
 
 # docs: prose documentation inside the projects
+acceptable = [
+  { path = "projects/cobra/site/content/user_guide.md", lines = [436, 490] },
+]
 
 [[query]]
 id = "docs-bash-completion"
@@ -206,7 +228,11 @@ id = "docs-active-help"
 text = "show hints to the user while they press tab"
 category = "docs"
 relevant = ["projects/cobra/site/content/active_help.md"]
-acceptable = ["projects/cobra/active_help.go", "projects/cobra/site/content/completions/_index.md"]
+acceptable = [
+  "projects/cobra/active_help.go",
+  "projects/cobra/site/content/completions/_index.md",
+  { path = "projects/cobra/site/content/user_guide.md", lines = [828, 869] },
+]
 
 [[query]]
 id = "docs-subcommands"
@@ -498,81 +524,81 @@ relevant = [{ path = "videos/duck_and_cover_1951.mp4", seconds = [82, 96] }]
 
 [[query]]
 id = "audio-rain"
-text = "rain falling"
+text = "the sound of rain falling"
 category = "audio"
 relevant = ["audio/field-recordings/rec_010.mp3"]
 acceptable = ["audio/field-recordings/rec_009.mp3"]
 
 [[query]]
 id = "audio-thunder"
-text = "thunder rumbling in a storm"
+text = "the sound of thunder rumbling in a storm"
 category = "audio"
 relevant = ["audio/field-recordings/rec_009.mp3"]
 acceptable = ["audio/field-recordings/rec_010.mp3", "audio/field-recordings/rec_002.mp3"]
 
 [[query]]
 id = "audio-waves"
-text = "ocean waves on a beach"
+text = "the sound of ocean waves on a beach"
 category = "audio"
 split = "test"
 relevant = ["audio/field-recordings/rec_012.mp3"]
 
 [[query]]
 id = "audio-stream"
-text = "water running in a small creek"
+text = "the sound of water running in a small creek"
 category = "audio"
 relevant = ["audio/field-recordings/rec_001.mp3"]
 acceptable = ["audio/field-recordings/rec_012.mp3"]
 
 [[query]]
 id = "audio-wolf"
-text = "a wolf howling"
+text = "the sound of a wolf howling"
 category = "audio"
 relevant = ["audio/field-recordings/rec_013.mp3"]
 acceptable = ["audio/field-recordings/rec_011.mp3"]
 
 [[query]]
 id = "audio-whale"
-text = "whale song"
+text = "a recording of whale song"
 category = "audio"
 split = "test"
 relevant = ["audio/field-recordings/rec_004.mp3"]
 
 [[query]]
 id = "audio-siren"
-text = "emergency vehicle siren"
+text = "the sound of an emergency vehicle siren"
 category = "audio"
 relevant = ["audio/field-recordings/rec_005.mp3"]
 
 [[query]]
 id = "audio-helicopter"
-text = "helicopter flying overhead"
+text = "the sound of a helicopter flying overhead"
 category = "audio"
 relevant = ["audio/field-recordings/rec_008.mp3"]
 
 [[query]]
 id = "audio-crickets"
-text = "insects chirping at night"
+text = "the sound of insects chirping at night"
 category = "audio"
 split = "test"
 relevant = ["audio/field-recordings/rec_006.mp3"]
 
 [[query]]
 id = "audio-bugle"
-text = "bugle call"
+text = "the sound of a bugle call"
 category = "audio"
 relevant = ["audio/field-recordings/rec_007.mp3"]
 acceptable = ["music/german_fidelity_march_1914.mp3"]
 
 [[query]]
 id = "audio-harmonica"
-text = "someone playing the harmonica"
+text = "the sound of someone playing the harmonica"
 category = "audio"
 relevant = ["audio/field-recordings/rec_003.mp3"]
 
 [[query]]
 id = "audio-cannon"
-text = "a cannon being fired"
+text = "the sound of a cannon being fired"
 category = "audio"
 split = "test"
 relevant = ["audio/field-recordings/rec_002.mp3"]
@@ -604,6 +630,7 @@ id = "cross-bread"
 text = "how to make bread"
 category = "cross-type"
 relevant = ["notes/recipes/sourdough-bread.md", "audio/audiobooks/us_navy_cookbook_13.mp3"]
+acceptable = ["photos/2025/IMG_8790.jpg"]
 
 [[query]]
 id = "cross-tokyo"
@@ -835,6 +862,20 @@ text = "riding a mountain bike on a forest trail"
 category = "image-content"
 relevant = ["photos/2023/IMG_1388.jpg"]
 acceptable = ["notes/travel/2023-utah-road-trip.md"]
+
+[[query]]
+id = "img-latte"
+text = "pouring milk into a coffee to make latte art"
+category = "image-content"
+split = "test"
+relevant = ["photos/2025/IMG_8811.jpg"]
+
+[[query]]
+id = "img-bread"
+text = "a freshly baked loaf cooling on a rack"
+category = "image-content"
+relevant = ["photos/2025/IMG_8790.jpg"]
+acceptable = ["notes/recipes/sourdough-bread.md"]
 
 [[query]]
 id = "like-kitten"
