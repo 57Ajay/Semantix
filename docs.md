@@ -580,6 +580,48 @@ tells you which is faster on yours; the [results](#results) table has both cases
 While a sync is embedding, a search waits for the batch in progress. On a CPU a single video
 segment can hold a search up for a while.
 
+### Large collections
+
+`scripts/scale-test.py` builds collections of synthetic parts (random 768-dimension vectors,
+text with a realistic spread of common and rare words) and measures them without the model.
+On the 4-core Xeon:
+
+| Parts | Database | Service start | Memory for vectors | Vector search | Hybrid, rare words | Hybrid, common words |
+| --- | --- | --- | --- | --- | --- | --- |
+| 10,000 | 63 MB | 0.1 s | 46 MB | 1.5 ms | 4 ms | 21 ms |
+| 50,000 | 308 MB | 0.5 s | 229 MB | 5 ms | 12 ms | 104 ms |
+| 100,000 | 615 MB | 0.8 s | 416 MB | 17 ms | 22 ms | 23 ms |
+| 250,000 | 1.5 GB | 1.6 s | 760 MB | 38 ms | 48 ms | 52 ms |
+
+The 10,000 and 50,000 rows were measured before two changes, which brought the 250,000-part
+collection from 390 ms to 52 ms for common words and from 1.65 GB to 0.93 GB of peak memory
+while loading:
+
+- **Keyword candidates come from the rarest query words.** Words are taken from the rarest
+  up until they would match more than 5,000 parts or 5% of the collection. Common words still
+  count when the keyword bonus is calculated, so results on the eval set did not change at all.
+- **Loading no longer copies the vectors,** and the in-memory index grows by a quarter instead
+  of doubling.
+
+Exact vector search stays well under the time it takes to embed the query (50 to 190 ms), so
+an approximate index is not needed at this size. The memory for vectors is about 3 KB per
+part at 768 dimensions, on top of the 2 to 4 GB the model needs.
+
+### Text batch size on a CPU
+
+Characters per second on the Xeon with AVX512-BF16, 48 real parts sent in the same windows the
+sync uses:
+
+| Batch | 1 | 2 | 4 | 8 | 16 | 32 |
+| --- | --- | --- | --- | --- | --- | --- |
+| float32 | 2,920 | 2,852 | 2,916 | 2,134 | 2,130 | 2,015 |
+| bfloat16 | 6,028 | 6,742 | 6,731 | 6,119 | 4,668 | 4,195 |
+
+Larger batches are slower on a CPU, in a step rather than gradually: between 4 and 8 in
+float32 and between 8 and 16 in bfloat16, whose numbers take half the memory. Padding is not
+the cause, because inputs are sorted by length before batching; the step is where the work no
+longer fits the processor's caches. The CPU default of 4 is the fastest choice for both.
+
 ## Benchmark and GPU testing
 
 ```bash
@@ -958,9 +1000,9 @@ any change to the model path.
   environment. macOS as a whole is untested.
 - **Windows is not supported.** The service uses Unix sockets.
 - **PDFs and office documents are not embedded.**
-- **Vectors are searched exactly, in memory.** That is fast up to a few hundred thousand parts
-  (1 GB of memory per 350,000 parts at 768 dimensions) and has not been tested beyond small
-  collections.
+- **Vectors are searched exactly, in memory.** That measured 38 ms per search and 760 MB of
+  memory at 250,000 synthetic parts (see [large collections](#large-collections)). Real
+  collections have only been tested up to about a thousand parts.
 - **Score thresholds are rough.** On the standard eval set the best result of a query with no
   answer never scored above 0.12, and every correct first result scored at least 0.13, but
   that comes from only eight such queries. See [measuring search quality](#measuring-search-quality).
