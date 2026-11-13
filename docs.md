@@ -840,18 +840,24 @@ What these show:
 | `index.chunk_chars` 800 | 82.4% | 89.9% | 1,533 parts instead of 860; docs better, code and `--like` worse |
 | `index.chunk_chars` 2400 | 83.9% | 92.4% | 640 parts; 8 of the 9 queries that moved went up, on both splits |
 | `model.dtype` bfloat16 | 83.2% | 92.4% | Whole set embedded in 8 minutes instead of 18; six queries moved by one or two places |
+| bfloat16, `index.chunk_chars` 2000 | 83.6% | 90.8% | 725 parts; test split slightly worse |
+| bfloat16, `index.chunk_chars` 2400 | 84.2% | 92.4% | 640 parts; best again, on both splits, by about one query |
+| bfloat16, `index.chunk_chars` 3200 | 83.1% | 92.0% | 531 parts; no better than the default |
+| bfloat16, chunk titles with the enclosing heading or definition | 83.2% | 91.6% | 415 parts got a richer title; no change |
 
 - **Calibration is worth keeping, but it costs exact matches.** Subtracting each part's
   similarity to unrelated queries helps prose a lot and hurts code identifiers. Calibrating
   per type, or weighting keyword matches more when the query looks like an identifier, are
   the obvious next experiments.
 - **The keyword bonus is flat between 0.08 and 0.16.** The default stays.
-- **Larger text parts did slightly better, smaller ones slightly worse.** At 2,400 characters
-  MRR rose by about one query's worth on both the dev and the test split, with a quarter
-  fewer parts to store and search. The gain is too small to change the default on this
-  evidence alone; sizes between 2,000 and 3,200, ideally with structure-aware chunking for
-  code, are worth measuring next. Each of these runs re-embedded only text and code and took
-  about 4 to 5 minutes.
+- **2,400 characters per part was the best size in both number formats, but only by about
+  one query.** 2,000 and 3,200 were no better than the default 1,600, so the gain is close to
+  noise, and larger parts make the line range of a result less precise. The default stays;
+  it is worth measuring again once the set has more code queries. Each run re-embedded only
+  text and code: about 4 to 5 minutes in float32, under 3 in bfloat16.
+- **Adding the enclosing heading or function to a part's title changed nothing.** The title
+  was `path > def name(...)` instead of the path alone. The model already sees the
+  definition inside the part, so this idea from the plan is dropped.
 - **bfloat16 gives the same search quality as float32 on a CPU that supports it.** On this
   Xeon with AVX512-BF16 it embedded everything 2.2 times faster with no measurable loss.
   Since then `model.dtype = auto` picks bfloat16 on CPUs with AVX512-BF16 or AMX and keeps
