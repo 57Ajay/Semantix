@@ -51,7 +51,7 @@ class VectorIndex:
         capacity = len(self._ids)
         if needed <= capacity:
             return
-        capacity = max(needed, capacity * 2, 1024)
+        capacity = max(needed, capacity + capacity // 4, 1024)
         vectors = np.zeros((capacity, self.dimension), dtype=np.float32)
         vectors[: self._size] = self._vectors[: self._size]
         self._vectors = vectors
@@ -67,6 +67,9 @@ class VectorIndex:
         if not count:
             return
         with self._lock:
+            if not self._size:
+                self._adopt(ids, file_ids, kinds, vectors)
+                return
             self._reserve(count)
             end = self._size + count
             self._vectors[self._size : end] = vectors
@@ -76,6 +79,16 @@ class VectorIndex:
             self._alive[self._size : end] = True
             self._baseline[self._size : end] = self._baseline_for(self._vectors[self._size : end], self._kinds[self._size : end])
             self._size = end
+
+    def _adopt(self, ids, file_ids, kinds, vectors: np.ndarray) -> None:
+        count = len(ids)
+        self._vectors = np.ascontiguousarray(vectors, dtype=np.float32)
+        self._ids = np.array(ids, dtype=np.int64)
+        self._files = np.array(file_ids, dtype=np.int64)
+        self._kinds = np.array([KIND_CODES[kind] for kind in kinds], dtype=np.uint8)
+        self._alive = np.ones(count, dtype=bool)
+        self._baseline = self._baseline_for(self._vectors, self._kinds)
+        self._size = count
 
     def remove_files(self, file_ids) -> None:
         file_ids = np.asarray(list(file_ids), dtype=np.int64)
