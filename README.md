@@ -20,6 +20,7 @@ for what the command reports and how to compare changes.
 | `corpus/` | The files that are searched |
 | `sources.toml` | Origin, author, licence and checksum of every file that came from elsewhere |
 | `licenses/` | Licence texts of the three code projects |
+| `tools/make_images.py` | Draws the screenshots, receipt, slide, diagram, WiFi card and boarding pass: `python tools/make_images.py corpus` (needs Pillow and the DejaVu fonts; the noise in two pictures makes the checksums differ) |
 | `results/` | Reports from reference runs on a 4-core Xeon with AVX512-BF16: the float32 baseline and the same run in bfloat16 |
 
 ## Changing the set
