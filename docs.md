@@ -95,8 +95,9 @@ semantix setup --yes --capabilities text,image --dimension 768 --preset balanced
 `model.device` is `auto` by default: CUDA if available, then Apple Metal (MPS), then CPU. On
 CUDA the model runs in bfloat16 on GPUs that accelerate it (compute capability 8.0 and up,
 roughly the RTX 30 series and newer) and in float32 on older ones such as the T4, where
-bfloat16 measured slower. Apple Metal and CPU use float32. float16 is never used because the
-model produces invalid output in it.
+bfloat16 measured slower. On a CPU it uses bfloat16 when the processor has the AVX512-BF16 or
+AMX instructions (recent Intel Xeon and AMD Zen 4 or newer) and float32 otherwise. Apple Metal
+uses float32. float16 is never used because the model produces invalid output in it.
 
 `model.dtype` overrides the number format: `auto`, `float32` or `bfloat16`. bfloat16 halves
 the memory for the weights. Whether it is faster depends on the hardware, and
@@ -572,8 +573,9 @@ audio; see the [results](#results) table.
 
 bfloat16 uses about a third less memory on a CPU, but its speed depends on the processor: it
 was twice as fast as float32 on a CPU with the AVX512-BF16 instructions and three times slower
-on one without. float32 stays the CPU default. `semantix benchmark` tells you which is faster
-on yours; the [results](#results) table has both cases.
+on one without. `model.dtype = auto` therefore picks bfloat16 only on CPUs that report
+AVX512-BF16 or AMX, and the eval showed no loss in search quality there. `semantix benchmark`
+tells you which is faster on yours; the [results](#results) table has both cases.
 
 While a sync is embedding, a search waits for the batch in progress. On a CPU a single video
 segment can hold a search up for a while.
@@ -665,8 +667,9 @@ What these show:
   Semantix halves the batch and retries when it runs out, and `model.batch_size` and
   `model.media_batch_size` can be lowered by hand.
 - **bfloat16 on a CPU depends on the processor.** It was twice as fast on a CPU with the
-  AVX512-BF16 instructions and three times slower on one without. float32 stays the CPU
-  default; switch only if the benchmark on your machine says so.
+  AVX512-BF16 instructions and three times slower on one without. `model.dtype = auto` picks
+  it only when the processor reports those instructions (or AMX); the eval found the same
+  search quality in both formats. Only Intel CPUs have been measured.
 - **A single query costs 60 to 190 ms everywhere.** Most of that is fixed overhead, so a GPU
   matters for indexing far more than for searching.
 
@@ -851,9 +854,8 @@ What these show:
   about 4 to 5 minutes.
 - **bfloat16 gives the same search quality as float32 on a CPU that supports it.** On this
   Xeon with AVX512-BF16 it embedded everything 2.2 times faster with no measurable loss.
-  `model.dtype = auto` still picks float32 on every CPU, because on CPUs without those
-  instructions bfloat16 is three times slower. Choosing bfloat16 automatically when the CPU
-  has AVX512-BF16 or AMX is supported by this result.
+  Since then `model.dtype = auto` picks bfloat16 on CPUs with AVX512-BF16 or AMX and keeps
+  float32 on the others, where bfloat16 is three times slower.
 
 ### Writing your own set
 

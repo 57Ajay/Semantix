@@ -113,4 +113,20 @@ def test_auto_number_format_follows_the_gpu_generation(monkeypatch):
     monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *args, **kwargs: (8, 9))
     assert resolve_dtype("cuda") == torch.bfloat16
     assert resolve_dtype("cuda", "float32") == torch.float32
+    monkeypatch.setattr("semantix.model.cpu_bf16", lambda: False)
     assert resolve_dtype("cpu") == torch.float32 and resolve_dtype("mps") == torch.float32
+    monkeypatch.setattr("semantix.model.cpu_bf16", lambda: True)
+    assert resolve_dtype("cpu") == torch.bfloat16 and resolve_dtype("mps") == torch.float32
+    assert resolve_dtype("cpu", "float32") == torch.float32
+
+
+def test_cpu_bf16_reads_the_processor_flags(tmp_path):
+    from semantix.model import cpu_bf16
+
+    with_flag = tmp_path / "with"
+    with_flag.write_text("processor\t: 0\nflags\t\t: fpu sse2 avx512f avx512_bf16 amx_tile\n")
+    without = tmp_path / "without"
+    without.write_text("processor\t: 0\nflags\t\t: fpu sse2 avx2 avx512f\n")
+    assert cpu_bf16(str(with_flag))
+    assert not cpu_bf16(str(without))
+    assert not cpu_bf16(str(tmp_path / "missing"))

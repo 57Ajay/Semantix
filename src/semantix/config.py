@@ -29,7 +29,7 @@ OPTIONS: dict[str, Option] = {
     "model.dimension": Option(768, "Stored vector size", DIMENSIONS),
     "model.device": Option("auto", "Compute device", ("auto", "cuda", "mps", "cpu")),
     "model.dtype": Option(
-        "auto", "Number format; auto uses bfloat16 on NVIDIA GPUs that accelerate it, float32 elsewhere",
+        "auto", "Number format; auto uses bfloat16 on GPUs and CPUs that accelerate it, float32 elsewhere",
         ("auto", "float32", "bfloat16"),
     ),
     "model.batch_size": Option(0, "Text batch size, 0 picks one for the device", minimum=0),

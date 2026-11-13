@@ -122,8 +122,10 @@ Embedding speed depends almost entirely on the device.
 | 4-thread CPU | 3,600 chars/s | 3.3 s each | 0.7 frames/s | 14x realtime |
 | NVIDIA Tesla T4 | 13,100 chars/s | 0.55 s each | 3.9 frames/s | 78x realtime |
 
-A search takes 60 to 190 ms on either. On a CPU, `semantix config preset balanced` roughly
-halves image and video time. Every sync shows an estimate first, based on what your machine
+A search takes 60 to 190 ms on either. On CPUs with the AVX512-BF16 or AMX instructions
+Semantix computes in bfloat16, which is about twice as fast as the CPU row above with the same
+search quality. On a CPU, `semantix config preset balanced` roughly halves image and video
+time. Every sync shows an estimate first, based on what your machine
 measured in earlier runs. More machines and the details are in
 [docs.md](docs.md#results).
 
