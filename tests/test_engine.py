@@ -276,3 +276,19 @@ def test_unavailable_location_is_not_raided_for_moves(engine, tmp_path):
     os.rename(inbox, tmp_path / "unplugged")
     plan = engine.plan([str(archive)])
     assert plan["totals"]["moves"] == 0 and plan["totals"]["files"] == 1
+
+
+def test_keyword_search_skips_words_that_match_too_much(engine, tmp_path, monkeypatch):
+    folder = tmp_path / "many"
+    folder.mkdir()
+    for index in range(6):
+        extra = " zanzibar" if index == 3 else ""
+        (folder / f"note{index}.md").write_text(f"# Note {index}\n\nshared words appear everywhere{extra}\n")
+    run_sync(engine, [str(folder)])
+    monkeypatch.setattr("semantix.engine.KEYWORD_MATCH_BUDGET", 2)
+    assert engine._match_terms("shared zanzibar", "hybrid") == ["zanzibar"]
+    assert engine._match_terms("shared words", "hybrid") == []
+    assert len(engine._match_terms("shared words", "keyword")) == 1
+    assert paths_of(engine.search("shared zanzibar", mode="keyword")) == ["note3.md"]
+    assert engine.search("shared words", mode="keyword")["hits"]
+    assert engine.search("shared words", mode="hybrid")["hits"]

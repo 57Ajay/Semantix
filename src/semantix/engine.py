@@ -39,6 +39,8 @@ log = logging.getLogger("semantix.engine")
 MB = 1024 * 1024
 PLAN_TTL = 1800
 KEYWORD_BONUS = 0.08
+KEYWORD_MATCH_BUDGET = 5000
+KEYWORD_MATCH_SHARE = 0.05
 ANCHOR_QUERIES = (
     "a photo of a mountain landscape", "how to cook rice", "function that sorts a list",
     "meeting notes about the quarterly budget", "sound of heavy rain", "error handling in javascript",
@@ -974,7 +976,8 @@ class Engine:
             for chunk_id, score, raw in self.index.search(primary, pool, code_query, kinds, file_filter, calibrate):
                 scored[chunk_id] = (score, raw)
         if query and mode != "vector":
-            keyword_hits = self.store.keyword_search(query, pool, kinds, under)
+            terms = self._match_terms(query, mode)
+            keyword_hits = self.store.keyword_search(query, pool, kinds, under, terms) if terms else []
             missing = [chunk_id for chunk_id, _rank in keyword_hits if chunk_id not in scored]
             if missing and primary is not None:
                 scored.update(self.index.score_of(missing, primary, code_query, calibrate))
@@ -1033,6 +1036,23 @@ class Engine:
             "searched": len(self.index),
             "calibrated": calibrate and mode != "keyword",
         }
+
+    def _match_terms(self, query: str, mode: str) -> list[str]:
+        terms = query_terms(query)
+        counts = self.store.term_document_counts(terms)
+        if not counts:
+            return terms
+        budget = max(KEYWORD_MATCH_BUDGET, int(KEYWORD_MATCH_SHARE * self.store.chunk_count()))
+        chosen: list[str] = []
+        spent = 0
+        for term in sorted((term for term in terms if counts.get(term)), key=lambda term: counts[term]):
+            if spent + counts[term] > budget:
+                break
+            chosen.append(term)
+            spent += counts[term]
+        if not chosen and mode == "keyword":
+            chosen = [min(counts, key=counts.get)]
+        return chosen
 
     def _keyword_coverage(self, query: str, chunk_ids: list[int], details: dict[int, dict[str, Any]]) -> dict[int, float]:
         terms = query_terms(query)

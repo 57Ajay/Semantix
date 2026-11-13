@@ -430,9 +430,10 @@ class Store:
         return {row["id"]: dict(row) for row in rows}
 
     def keyword_search(
-        self, text: str, limit: int, kinds: list[str] | None = None, under: str | None = None
+        self, text: str, limit: int, kinds: list[str] | None = None, under: str | None = None,
+        terms: list[str] | None = None,
     ) -> list[tuple[int, float]]:
-        query = fts_query(query_terms(text))
+        query = fts_query(query_terms(text) if terms is None else terms)
         if not query:
             return []
         sql = (
